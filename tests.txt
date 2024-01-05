@@ -1,0 +1,60 @@
+
+julia> R, (u,v,w,x,y,z) = polynomial_ring(ZZ,["u","v","w","x","y","z"])
+(Multivariate polynomial ring in 6 variables over ZZ, ZZMPolyRingElem[u, v, w, x, y, z])
+
+julia> QuasiFSplitness.isFSplit(2,x^2 + y^2 + x*y)
+true
+
+julia> QuasiFSplitness.isFSplit(3,x^2 + y^2 + x*y)
+true
+
+julia> QuasiFSplitness.isFSplit(3,x^2 + y^2)
+true
+
+julia> QuasiFSplitness.isFSplit(3,x^3 + y^2 + z^2 + w^2 + v^2 + u^2)
+true
+
+julia> QuasiFSplitness.isFSplit(3,x^3 + y^3 + z^3 + w^3 + v^3 + u^3)
+false
+
+julia> QuasiFSplitness.isFSplit(5,x^5 + y^5 + z^5 + w^5 + v^5 + u^5)
+false
+
+julia> QuasiFSplitness.isFSplit(5,x^3 + y^3 + z^3)
+false
+
+julia> QuasiFSplitness.isFSplit(7,x^3 + y^3 + z^3)
+true
+
+julia> QuasiFSplitness.isFSplit(11,x^3 + y^3 + z^3)
+false
+
+julia> QuasiFSplitness.isFSplit(13,x^3 + y^3 + z^3)
+true
+
+julia> QuasiFSplitness.isFSplit(17,x^3 + y^3 + z^3)
+false
+
+julia> QuasiFSplitness.isFSplit(19,x^3 + y^3 + z^3)
+true
+
+julia> QuasiFSplitness.isFSplit(23,x^3 + y^3 + z^3)
+false
+
+julia>
+
+julia> R, (u,v,w,x,y,z) = polynomial_ring(ZZ,["u","v","w","x","y","z"])
+(Multivariate polynomial ring in 6 variables over ZZ, ZZMPolyRingElem[u, v, w, x, y, z])
+
+julia> QuasiFSplitness.polynomial_frobenius_splitting(5,x^2 * y^3 * z + x^3 * y^2 * z^2 + x^8 * y^7 * z^7,[0,0,0,2,3,1])
+1
+
+julia> QuasiFSplitness.polynomial_frobenius_splitting(5,x^2 * y^3 * z + x^3 * y^2 * z^2 + x^8 * y^7 * z^7,[0,0,0,3,2,2])
+x*y*z + 1
+
+julia> QuasiFSplitness.polynomial_frobenius_splitting(5,x^2 * y^3 * z + x^3 * y^2 * z^2 + x^8 * y^2 * z^2,[0,0,0,3,2,2])
+x + 1
+
+julia> QuasiFSplitness.polynomial_frobenius_generator(5,x^2 + x^4*y^4*z^9*u^4*v^4*w^4)
+z
+
