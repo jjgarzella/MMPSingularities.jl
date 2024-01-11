@@ -1,6 +1,8 @@
 module QuasiFSplitness
 
 using Oscar
+using Memoize
+using Combinatorics
 
 exponent_vectors(poly) = leading_exponent_vector.(terms(poly))
 
@@ -78,8 +80,125 @@ function polynomial_frobenius_generator(p,poly)
 
   polynomial_frobenius_splitting(p,poly,fill(p-1, nVars))
 end#function
-                                           
 
+"""
+This is not as space-efficient as it could be
+
+Gives the ways of putting the numbers 1...sum(partition)
+into length(unique(partition)) boxes where each box
+is labeled by a part value and box labeled
+by partition[i] has 
+count(==(partition[i]),partition) elements
+
+list is assumed to be a list of indices, i.e.
+a list of integers with no repeated elements.
+
+partition is assumed to be a list of positive
+integers whose which is in increasing or decreasing
+order 
+(though I think one can get away with each value
+being in a contiguous interval of indices, i.e.
+[1;1;1;2;2;3] is ok but [1;1;2;1] is not)
+
+The resulting output is an array which has the same
+length as partition, whose i'th element is in the
+bucket labeled by partition[i]
+"""
+@memoize function multicombinations(list,partition)
+  #TODO: can this be more space-efficient as an iterator??
+  # TODO: rewrite this function to allocate memory smarter
+
+  if length(partition) == 0
+    return [zeros(eltype(partition),0)]
+  end
+  
+  first = partition[1]
+  nFirst = count(==(first),partition)
+
+  result = Vector{Vector{eltype(list)}}()
+  for combo in Combinatorics.combinations(list,nFirst)
+    withoutfirst = partition[partition .!= first]
+    withoutcombo = list[list .∉ (combo,)] # ∉ is \notin 
+
+    for multicombo in multicombinations(withoutcombo,withoutfirst)
+      push!(result,[combo; multicombo])
+    end
+  end
+
+  result
+end#function
+
+"""
+finds the multicombinations of the set {1, ... n},
+where n is the sum of the elements in partition
+"""
+function multicombinations(partition)
+  multicombinations(collect(1:sum(partition)),partition)
+end#function
+
+function Δ₁(p,poly)
+  
+  # I don't know how computationally intense these operations are
+  #    do them outside any loops just in case.
+  terms_iter = terms(poly)
+  allterms = collect(terms_iter)
+  nTerms = length(allterms)
+
+  res = zero(poly)
+  for termlist in Combinatorics.combinations(allterms,p)
+    
+    for partition in Combinatorics.partitions(p)
+
+      # the algorithm will still work without this line 
+      # because div(1,p) == 0 so coef == 0 below...
+      #
+      # ...but let's not do the extra work.
+      length(partition) == 1 && continue
+
+      distParts = unique(partition)
+      nDistParts = length(distParts)
+      
+      coef = div(multinomial(partition...),p)
+
+      for multicombo in multicombinations(partition)
+        newterm = one(poly)
+        for i in 1:length(partition)
+          exponent = partition[i]
+          termind = multicombo[i]
+          newterm = newterm * (termlist[termind])^exponent
+        end
+        res = res + coef * newterm
+      end
+
+    end
+
+  end
+
+  res
+end#function
+
+"""
+Returns true if the polynomial poly
+is in the "frobenius power" \\frak{m}^[p],
+where {m} is the ideal of variables of the ring.
+
+"""
+function inPowerOfVariableIdeal(p,poly)
+  # don't need this because exponent_vectors will have 
+  # no elements for the zero polynomial
+  #poly == zero(poly) && return true
+
+
+  for exponent_vector in exponent_vectors(poly)
+    if all(exponent_vector .< p)
+      # We not in the power of the maximal ideal, we don't have any
+      # powers that are big enough
+      return false
+    end
+  end
+
+  true
+end#function
 
 """
 Calculates if the hypersuface defined by the 
@@ -90,20 +209,16 @@ note that p must be prime for this to have mathematical meaning
 function isFSplit(p,poly)
   #maybe TODO: check that p is prime
 
+  !inPowerOfVariableIdeal(p,poly^(p-1))
 
-  fpower = poly^(p-1)
-
-  for exponent_vector in exponent_vectors(fpower)
-    if all(exponent_vector .< p)
-      # We are F-split!!
-      return true
-    end
-  end
-
-  false
 end#function
 
 function quasiFSplitHeight(p,poly)
+  # TODO: understand how to check quasi-F-splitness for heights higher than 2,
+  # and figure out how the "other elements" come into play
+  
+
+  # TODO: figure out why the computations don't seem to be working for the examples in 2204.10076 on page 59
 
 end#function
 
