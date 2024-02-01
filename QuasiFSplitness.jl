@@ -46,17 +46,21 @@ indices \\in [0, ..., p-1]
 
 """
 function polynomial_frobenius_splitting(p,poly,indices)
-  coefs = coefficients(poly)
+
+  coefs = collect(coefficients(poly)) # someday use iterator to make this more efficient?
   exp_vecs = exponent_vectors(poly)
   vars = gens(parent(poly))
 
+  poly == zero(poly) && return 0
   length(exp_vecs[1]) != length(indices) && begin println("mismatched number of variables"); return end
 
   result = zero(poly)
   for i in 1:length(coefs)
     if all((exp_vecs[i] .% p) .== indices)
-      new_exp_vec = div.(exp_vecs[i] .- indices,p) # the difision should be exact by the if statement
-      new_term = prod(vars .^ new_exp_vec)
+
+      new_exp_vec = divexact.(exp_vecs[i] .- indices,p) # the difision should be exact by the if statement
+      
+      new_term = coefs[i] * prod(vars .^ new_exp_vec)
       result = result + new_term
     end
   end
@@ -136,7 +140,69 @@ function multicombinations(partition)
   multicombinations(collect(1:sum(partition)),partition)
 end#function
 
+"""
+Computes Δ₁(poly) by iterating
+through all possible multicombinations 
+(cross terms).
+"""
 function Δ₁(p,poly)
+  
+  # I don't know how computationally intense these operations are
+  #    do them outside any loops just in case.
+  terms_iter = terms(poly)
+  allterms = collect(terms_iter)
+  nTerms = length(allterms)
+
+  res = zero(poly)
+
+  for partition in Combinatorics.partitions(p)
+    # the algorithm will still work without this line 
+    # because div(1,p) == 0 so coef == 0 below...
+    #
+    # ...but let's not do the extra work.
+    length(partition) == 1 && continue
+
+    distParts = unique(partition)
+    nDistParts = length(distParts)
+  
+    # println("Partition", partition)
+
+    for termlist in Combinatorics.combinations(allterms,length(partition))
+      
+      coef = div(multinomial(partition...),p)
+
+      # println("Coef: ", coef)
+
+      for multicombo in multicombinations(collect(1:length(partition)),partition)
+
+        # println("Multicombo: ", multicombo)
+
+        newterm = one(poly)
+        for i in 1:length(partition)
+          exponent = partition[i]
+          termind = multicombo[i]
+          newterm = newterm * (termlist[termind])^exponent
+        end
+
+        # println("Term added: ", newterm)
+        res = res + coef * newterm
+      end
+
+    end
+
+  end
+
+  res
+end#function
+
+"""
+Computes Δ₁(poly) by iterating
+through all possible multicombinations 
+(cross terms).
+
+This one is busted.
+"""
+function Δ₁_doesntwork(p,poly)
   
   # I don't know how computationally intense these operations are
   #    do them outside any loops just in case.
@@ -157,8 +223,12 @@ function Δ₁(p,poly)
 
       distParts = unique(partition)
       nDistParts = length(distParts)
+
+      println("Partition", partition)
       
       coef = div(multinomial(partition...),p)
+
+      println("Coef: ", coef)
 
       for multicombo in multicombinations(partition)
         newterm = one(poly)
@@ -167,6 +237,8 @@ function Δ₁(p,poly)
           termind = multicombo[i]
           newterm = newterm * (termlist[termind])^exponent
         end
+
+        println("Term added: ", newterm)
         res = res + coef * newterm
       end
 
@@ -178,19 +250,90 @@ function Δ₁(p,poly)
 end#function
 
 """
+Returns Δ₁(poly), computed by
+lifting to characteristic zero,
+computing the cross terms, and
+reducing again
+"""
+function Δ₁l(p,poly)
+
+  R = parent(poly)
+  
+  originallift = map_coefficients(lift,poly)
+
+  #println("Original Lift: ", originallift)
+
+  ZR = parent(originallift)
+
+
+
+  nocrossterms = sum(terms(originallift) .^p)
+  withcrossterms = originallift^p
+
+  #println("No cross terms: ", nocrossterms)
+  #println("With cross terms: ", withcrossterms)
+
+  crossterms = withcrossterms - nocrossterms
+
+  #println("Just cross terms: ", crossterms)
+
+  Δlift = map_coefficients(x -> div(x,p),crossterms)
+
+  change_coefficient_ring(coefficient_ring(R),Δlift,parent=R)
+
+end#function
+
+"""
+Returns Δ₁(poly), computed by
+lifting to characteristic zero,
+computing the cross terms, and
+reducing again
+
+This one doesn't work
+"""
+function Δ₁l_busted(p,poly)
+
+  R = parent(poly)
+  
+  originallift = map_coefficients(lift,poly)
+
+  #println("Original Lift: ", originallift)
+
+  ZR = parent(originallift)
+
+  nocrossterms = map_coefficients(lift,poly^p,parent=ZR)
+  withcrossterms = originallift^p
+
+  #println("No cross terms: ", nocrossterms)
+  #println("With cross terms: ", withcrossterms)
+
+  crossterms = withcrossterms - nocrossterms
+
+  #println("Just cross terms: ", crossterms)
+
+  Δlift = map_coefficients(x -> div(x,p),crossterms)
+
+  change_coefficient_ring(coefficient_ring(R),Δlift,parent=R)
+
+end#function
+
+
+"""
 Returns true if the polynomial poly
 is in the "frobenius power" \\frak{m}^[p],
 where {m} is the ideal of variables of the ring.
 
 """
-function inPowerOfVariableIdeal(p,poly)
+function inPowerOfVariableIdeal(p,m,poly)
   # don't need this because exponent_vectors will have 
   # no elements for the zero polynomial
-  #poly == zero(poly) && return true
+  poly == zero(poly) && return true
 
 
   for exponent_vector in exponent_vectors(poly)
-    if all(exponent_vector .< p)
+    if all(exponent_vector .< m)
+      #println("Found term not in the Frob power of the maximal ideal: " * string(exponent_vector))
+      
       # We not in the power of the maximal ideal, we don't have any
       # powers that are big enough
       return false
@@ -198,6 +341,25 @@ function inPowerOfVariableIdeal(p,poly)
   end
 
   true
+end#function
+
+"""
+Returns true if the polyonoimal is homogenous.
+
+doesn't seem to be fully implemented in Oscar :(
+
+try 'is_homogeneous', doesn't seem to be implemented 
+for fpMPolyRingElem
+"""
+function isHomog(poly;ofdegree=-1)
+
+  evs = exponent_vectors(poly)
+
+  if ofdegree == -1 
+    all(sum.(evs) .== sum(evs[1]))
+  else
+    all(sum.(evs) .== ofdegree)
+  end
 end#function
 
 """
@@ -209,8 +371,138 @@ note that p must be prime for this to have mathematical meaning
 function isFSplit(p,poly)
   #maybe TODO: check that p is prime
 
-  !inPowerOfVariableIdeal(p,poly^(p-1))
+  !inPowerOfVariableIdeal(p,p,poly^(p-1))
 
+end#function
+
+"""
+Calculates the quasi-F-split height
+in the case that deg(poly) = nvars(parent(poly))
+
+cutoff is inclusive, so it should be the highest possible height
+
+"""
+function quasiFSplitHeight_CY(p,poly,cutoff)
+  N = length(gens(parent(poly)))
+  
+  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+  isFSplit(p,poly) && return 1
+
+  f = poly
+
+  Δ₁fpminus1 = Δ₁(p,f^(p-1))
+  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+  # Honestly, just calling the ideals I_n could get confusing IMO
+
+  n = 2
+  # The newest generator in the KTY ideal I_2.
+  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+  # be concatenating on new generator at each step until the chain terminates.
+  # See Theorem 5.8 in 2204.10076
+  KTYideal_n_new_gen = θFstar(f^(p-1))
+
+  while n ≤ cutoff
+    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+
+    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+      # We are quasi-F split of height n! Yay!!
+      return n
+    end
+
+    n = n + 1
+    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+  end
+
+  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end#function
+
+"""
+Calculates the quasi-F-split height
+in the case that deg(poly) = nvars(parent(poly))
+
+cutoff is inclusive, so it should be the highest possible height
+
+Uses the lift-based algorithm to calculate Δ₁
+
+"""
+function quasiFSplitHeight_CY_lift(p,poly,cutoff)
+  N = length(gens(parent(poly)))
+  
+  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+  isFSplit(p,poly) && return 1
+
+  f = poly
+
+  Δ₁fpminus1 = Δ₁l(p,f^(p-1))
+  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+  # Honestly, just calling the ideals I_n could get confusing IMO
+
+  n = 2
+  # The newest generator in the KTY ideal I_2.
+  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+  # be concatenating on new generator at each step until the chain terminates.
+  # See Theorem 5.8 in 2204.10076
+  KTYideal_n_new_gen = θFstar(f^(p-1))
+
+  while n ≤ cutoff
+    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+
+    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+      # We are quasi-F split of height n! Yay!!
+      return n
+    end
+
+    n = n + 1
+    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+  end
+
+  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end#function
+
+
+"""
+Calculates the quasi-F-split height of the hypersurface
+defined by poly.
+
+Uses the naive formula in Theorem 5.8 (pg 42) of arXiv:2204.10076
+
+This function seems to be broken right now, its results don't agree
+with Table 2 in 2204.10076
+"""
+function quasiFSplitHeight_CY_naive_expansion(p,poly,cutoff)
+  N = length(gens(parent(poly)))
+  
+  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+  isFSplit(p,poly) && return 1
+
+  f = poly
+
+  n = 1
+  fn = f^(p-1)
+
+  while n < cutoff
+    n = n + 1
+    fn = fn * Δ₁(p,f^(p-1))^(p^(n-2))
+    if !inPowerOfVariableIdeal(p,p^n,fn)
+      # We are quasi-F-split of height n!! Yay!
+      return n
+    end
+  end
+
+  # We don't know what the quasi-F-split height is, it might
+  # be infinity or it might just be greater than cutoff.
+  return cutoff + 1
 end#function
 
 function quasiFSplitHeight(p,poly)
