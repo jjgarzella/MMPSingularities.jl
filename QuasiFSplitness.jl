@@ -60,7 +60,11 @@ function polynomial_frobenius_splitting(p,poly,indices)
 
       new_exp_vec = divexact.(exp_vecs[i] .- indices,p) # the difision should be exact by the if statement
       
-      new_term = coefs[i] * prod(vars .^ new_exp_vec)
+      new_term = coefs[i] * prod(vars .^ new_exp_vec) 
+      # uses that gens and leading_exponent_vector are using the same variable order
+
+
+
       result = result + new_term
     end
   end
@@ -83,6 +87,53 @@ function polynomial_frobenius_generator(p,poly)
   nVars = length(gens(parent(poly)))
 
   polynomial_frobenius_splitting(p,poly,fill(p-1, nVars))
+end#function
+
+"""
+Multiplies the two polynomials f and g together
+and then applies `polynomial_frobenius_splitting`
+to the result.
+
+This algorithm only stores the relevant terms,
+forgetting all intermediate ones. 
+It *should* use less memory than the usual one.
+
+"""
+function multiply_then_split(p,f,g,indices)
+
+  result = zero(f)
+
+  vars = gens(parent(f))
+
+  for t in terms(f)
+    for u in terms(g)
+
+      prodterm = t*u
+
+      exps = leading_exponent_vector(prodterm)
+
+      if all((exps .% p) .== indices)
+
+        coef = leading_coefficient(prodterm)
+
+        new_exp_vec = divexact.(exps .- indices,p) # the difision should be exact by the if statement
+
+        newterm = coef * prod(vars .^ new_exp_vec) 
+
+        result = result + newterm
+      end
+
+    end
+
+  end
+
+  result
+end#function
+
+function multiply_then_split(p,f,g)
+    nVars = length(gens(parent(f)))
+
+    multiply_then_split(p,f,g,fill(p-1, nVars))
 end#function
 
 """
@@ -381,6 +432,59 @@ function quasiFSplitHeight_CY_lift(p,poly,cutoff)
 
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
+
+"""
+Calculates the quasi-F-split height
+in the case that deg(poly) = nvars(parent(poly))
+
+cutoff is inclusive, so it should be the highest possible height
+
+Uses the lift-based algorithm to calculate Δ₁
+
+This one uses multiply_then_split to only keep track of terms
+that it needs.
+
+"""
+function quasiFSplitHeight_CY_lift_lazy(p,poly,cutoff)
+  N = length(gens(parent(poly)))
+  
+  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+  isFSplit(p,poly) && return 1
+
+  f = poly
+
+  Δ₁fpminus1 = Δ₁l(p,f^(p-1))
+  θFstar(a) = multiply_then_split(p,Δ₁fpminus1,a)
+
+  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+  # Honestly, just calling the ideals I_n could get confusing IMO
+
+  n = 2
+  # The newest generator in the KTY ideal I_2.
+  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+  # be concatenating on new generator at each step until the chain terminates.
+  # See Theorem 5.8 in 2204.10076
+  KTYideal_n_new_gen = θFstar(f^(p-1))
+
+  while n ≤ cutoff
+    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+
+    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+      # We are quasi-F split of height n! Yay!!
+      return n
+    end
+
+    n = n + 1
+    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+  end
+
+  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end#function
+
+
 
 
 """
