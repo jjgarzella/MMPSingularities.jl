@@ -195,59 +195,6 @@ function Δ₁(p,poly)
   res
 end#function
 
-"""
-Computes Δ₁(poly) by iterating
-through all possible multicombinations 
-(cross terms).
-
-This one is busted.
-"""
-function Δ₁_doesntwork(p,poly)
-  
-  # I don't know how computationally intense these operations are
-  #    do them outside any loops just in case.
-  terms_iter = terms(poly)
-  allterms = collect(terms_iter)
-  nTerms = length(allterms)
-
-  res = zero(poly)
-  for termlist in Combinatorics.combinations(allterms,p)
-    
-    for partition in Combinatorics.partitions(p)
-
-      # the algorithm will still work without this line 
-      # because div(1,p) == 0 so coef == 0 below...
-      #
-      # ...but let's not do the extra work.
-      length(partition) == 1 && continue
-
-      distParts = unique(partition)
-      nDistParts = length(distParts)
-
-      println("Partition", partition)
-      
-      coef = div(multinomial(partition...),p)
-
-      println("Coef: ", coef)
-
-      for multicombo in multicombinations(partition)
-        newterm = one(poly)
-        for i in 1:length(partition)
-          exponent = partition[i]
-          termind = multicombo[i]
-          newterm = newterm * (termlist[termind])^exponent
-        end
-
-        println("Term added: ", newterm)
-        res = res + coef * newterm
-      end
-
-    end
-
-  end
-
-  res
-end#function
 
 """
 Returns Δ₁(poly), computed by
@@ -268,40 +215,6 @@ function Δ₁l(p,poly)
 
 
   nocrossterms = sum(terms(originallift) .^p)
-  withcrossterms = originallift^p
-
-  #println("No cross terms: ", nocrossterms)
-  #println("With cross terms: ", withcrossterms)
-
-  crossterms = withcrossterms - nocrossterms
-
-  #println("Just cross terms: ", crossterms)
-
-  Δlift = map_coefficients(x -> div(x,p),crossterms)
-
-  change_coefficient_ring(coefficient_ring(R),Δlift,parent=R)
-
-end#function
-
-"""
-Returns Δ₁(poly), computed by
-lifting to characteristic zero,
-computing the cross terms, and
-reducing again
-
-This one doesn't work
-"""
-function Δ₁l_busted(p,poly)
-
-  R = parent(poly)
-  
-  originallift = map_coefficients(lift,poly)
-
-  #println("Original Lift: ", originallift)
-
-  ZR = parent(originallift)
-
-  nocrossterms = map_coefficients(lift,poly^p,parent=ZR)
   withcrossterms = originallift^p
 
   #println("No cross terms: ", nocrossterms)
