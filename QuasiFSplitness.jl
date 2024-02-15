@@ -47,23 +47,26 @@ indices \\in [0, ..., p-1]
 """
 function polynomial_frobenius_splitting(p,poly,indices)
 
-  coefs = collect(coefficients(poly)) # someday use iterator to make this more efficient?
-  exp_vecs = exponent_vectors(poly)
+  #coefs = collect(coefficients(poly)) # someday use iterator to make this more efficient?
+  #exp_vecs = exponent_vectors(poly)
   vars = gens(parent(poly))
 
   poly == zero(poly) && return 0
-  length(exp_vecs[1]) != length(indices) && begin println("mismatched number of variables"); return end
+  length(vars) != length(indices) && begin println("mismatched number of variables"); return end
 
   result = zero(poly)
-  for i in 1:length(coefs)
-    if all((exp_vecs[i] .% p) .== indices)
+  for i in 1:length(poly)
+    t = term(poly, i)
+    exp_vec = exponent_vector(t,1)
 
-      new_exp_vec = divexact.(exp_vecs[i] .- indices,p) # the difision should be exact by the if statement
+    if all((exp_vec .% p) .== indices)
+
+
+      new_exp_vec = divexact.(exp_vec .- indices,p) # the difision should be exact by the if statement
       
-      new_term = coefs[i] * prod(vars .^ new_exp_vec) 
+      c = coeff(t,1)
+      new_term = c * prod(vars .^ new_exp_vec) 
       # uses that gens and leading_exponent_vector are using the same variable order
-
-
 
       result = result + new_term
     end
@@ -105,16 +108,19 @@ function multiply_then_split(p,f,g,indices)
 
   vars = gens(parent(f))
 
-  for t in terms(f)
-    for u in terms(g)
+
+  for i in 1:length(f)
+    t = term(f,i)
+    for j in 1:length(g)
+      u = term(g,j)
 
       prodterm = t*u
 
-      exps = leading_exponent_vector(prodterm)
+      exps = exponent_vector(prodterm,1)
 
       if all((exps .% p) .== indices)
 
-        coef = leading_coefficient(prodterm)
+        coef = coeff(prodterm,1)
 
         new_exp_vec = divexact.(exps .- indices,p) # the difision should be exact by the if statement
 
@@ -294,8 +300,10 @@ function inPowerOfVariableIdeal(p,m,poly)
   poly == zero(poly) && return true
 
 
-  for exponent_vector in exponent_vectors(poly)
-    if all(exponent_vector .< m)
+  for i in 1:length(poly)
+    ev = exponent_vector(poly,i)
+
+    if all(ev .< m)
       #println("Found term not in the Frob power of the maximal ideal: " * string(exponent_vector))
       
       # We not in the power of the maximal ideal, we don't have any
