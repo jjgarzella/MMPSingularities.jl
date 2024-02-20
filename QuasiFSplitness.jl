@@ -143,6 +143,29 @@ function multiply_then_split(p,f,g)
 end#function
 
 """
+
+"""
+function in_kernel_poly_frob_generator(p,poly)
+  nVars = length(gens(parent(poly)))
+  indices = fill(nVars,p-1)
+
+  for i in 1:length(poly)
+    t = term(poly, i)
+    exp_vec = exponent_vector(t,1)
+
+    if all((exp_vec .% p) .== indices)
+
+      # this term will not be zero!
+      return false
+    end
+  end
+
+  return true
+end#function
+
+# MARK - computing Δ_1
+
+"""
 This is not as space-efficient as it could be
 
 Gives the ways of putting the numbers 1...sum(partition)
@@ -287,6 +310,28 @@ function Δ₁l(p,poly)
 
 end#function
 
+"""
+If R is the polynomial ring in N variables,
+returns a basis for R as an R^p - module,
+equivalently returns a basis for
+F_*R as an R-module.
+
+"""
+function Fstar_basis(p,poly)
+  vars = gens(parent(poly))
+  n = length(vars)
+
+  numgens = p^n - 1
+
+  generators = zeros(parent(poly),fill(p,n)...)
+  for i in CartesianIndices(generators)
+    exps = Tuple(i) .- 1
+    generators[i] = prod(vars .^ exps)
+  end
+
+  vec(generators)
+end#function
+
 
 """
 Returns true if the polynomial poly
@@ -333,6 +378,9 @@ function isHomog(poly;ofdegree=-1)
     all(sum.(evs) .== ofdegree)
   end
 end#function
+
+
+# MARK - calculations of quasi-F-split height in one form or another
 
 """
 Calculates if the hypersuface defined by the 
@@ -530,13 +578,89 @@ function quasiFSplitHeight_CY_naive_expansion(p,poly,cutoff)
   return cutoff + 1
 end#function
 
-function quasiFSplitHeight(p,poly)
-  # TODO: understand how to check quasi-F-splitness for heights higher than 2,
-  # and figure out how the "other elements" come into play
+function quasiFSplitHeight(p,poly,cutoff)
+  N = length(gens(parent(poly)))
   
+  !isHomog(poly) && return -1 # type instability problem??
 
-  # TODO: figure out why the computations don't seem to be working for the examples in 2204.10076 on page 59
+  isFSplit(p,poly) && return 1
 
+  f = poly
+
+  fpminus1 = f^(p-1)
+  Δ₁fpminus1 = Δ₁l(p,fpminus1)
+  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+  Fstar_gens = Fstar_basis(p,f)
+
+  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+  # Honestly, just calling the ideals I_n could get confusing IMO
+
+  n = 2
+
+  KTY_ideal_generators = [fpminus1] # we don't actually use the initial value for anything but clarity
+  KTY_pullback_generators = fpminus1 .* Fstar_gens
+
+  while n ≤ cutoff
+
+    # Step 2. Remove things not in the kernel of u
+
+    for i in eachindex(KTY_pullback_generators)
+      g = KTY_pullback_generators[i]
+
+      if !in_kernel_poly_frob_generator(p,g)
+        # perhaps not the most efficient, but it will work
+        KTY_pullback_generators[i] = zero(g)
+      end
+    end
+
+    # Step 3. Apply θFstar
+    KTY_ideal_generators = θFstar.(KTY_pullback_generators)
+
+    #TODO: Step 3.5. add fpminus1 and take minimal generating set
+
+    # Step 4. Check whether the sequence of ideals terminatres here
+ 
+    allzero = true
+
+    for generator in KTY_ideal_generators
+
+      if generator == zero(poly) 
+        continue
+      else
+        allzero = false
+      end
+
+      if !inPowerOfVariableIdeal(p,p,generator)
+        # We are quasi-F split of height n! Yay!!
+        return n
+      end
+
+    end
+
+    allzero && return cutoff + 2 # the chain terminated early, provable infinity
+
+    # We are not n-quasi-F-split, so check if we are n+1-quasi-F-split
+    
+    n = n + 1
+
+    cutoff < n && continue # pretty much a break statement 
+
+    # Step 1. Compute the generators of the pullback.
+
+    #TODO: remove once step 3.5 is implemented 
+    KTY_ideal_generators = [KTY_ideal_generators; fpminus1]
+
+    KTY_pullback_generators = typeof(f)[]
+
+    ##TODO: KTY_pullback_generators = zeros(parent(f),length(
+
+    for gen in KTY_ideal_generators
+      KTY_pullback_generators = [KTY_pullback_generators; gen .* Fstar_gens]
+    end
+
+  end
+
+  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
 
 end#module
