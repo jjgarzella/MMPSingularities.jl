@@ -147,9 +147,10 @@ end#function
 """
 function in_kernel_poly_frob_generator(p,poly)
   nVars = length(gens(parent(poly)))
-  indices = fill(nVars,p-1)
+  indices = fill(p-1,nVars)
 
   for i in 1:length(poly)
+
     t = term(poly, i)
     exp_vec = exponent_vector(t,1)
 
@@ -285,7 +286,7 @@ reducing again
 function Δ₁l(p,poly)
 
   R = parent(poly)
-  
+
   originallift = map_coefficients(lift,poly)
 
   #println("Original Lift: ", originallift)
@@ -604,12 +605,18 @@ function quasiFSplitHeight(p,poly,cutoff)
 
     # Step 2. Remove things not in the kernel of u
 
+    #display(KTY_pullback_generators)
+  
+
     for i in eachindex(KTY_pullback_generators)
       g = KTY_pullback_generators[i]
 
       if !in_kernel_poly_frob_generator(p,g)
         # perhaps not the most efficient, but it will work
         KTY_pullback_generators[i] = zero(g)
+
+        #println("Removed generator $i")
+
       end
     end
 
@@ -661,6 +668,8 @@ function quasiFSplitHeight(p,poly,cutoff)
   end
 
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+
+  #FIXME FIXME this fails to do Example 7.8 correctly
 end#function
 
 end#module

@@ -95,6 +95,28 @@ function perturb_quasi_f_split_height(p,d,startf,cutoff,numtries;saveheight=-1,o
   (results,bars)
 end#function
 
+function fermat_hypersurface_heights(mind,maxd,minn,maxn,minp,maxp,cutoff=100)
+  result = Dict()
+
+  for n = minn:maxn
+    for p = minp:maxp
+
+      R, vars = polynomial_ring(GF(p),n)
+
+      for d = mind:maxd
+
+        fermat = sum(vars .^ d)
+
+        h = QuasiFSplitness.quasiFSplitHeight(p,fermat,cutoff)
+
+        println("Height of $fermat is $h")
+
+        result[(n,d,p)] = h
+      end
+    end
+  end
+
+end#function
 
 
 end#module
