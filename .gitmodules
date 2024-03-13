@@ -1,0 +1,6 @@
+[submodule "computational-linear-algebra-lib"]
+	path = computational-linear-algebra-lib
+	url = https://github.com/kedlaya-s-algorithm-research/computational-linear-algebra-lib.git
+[submodule "griffiths-dwork-construction"]
+	path = griffiths-dwork-construction
+	url = https://github.com/kedlaya-s-algorithm-research/griffiths-dwork-construction.git
