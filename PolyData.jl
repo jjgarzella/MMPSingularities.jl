@@ -68,4 +68,58 @@ function output_tcr_file(ps,polys,names,outputfilename)
   end
 end#function
 
+# MARK - Inputting data from census of cubic fourfolds in char=2
+
+
+
+function read_orbit_file_to_byte_array(filename)
+  s = open(filename,"r")
+  data = UInt8[]
+  data = readbytes!(s,data,typemax(Int))
+  close(s)
+  data
+end#function
+
+function read_cubic_fourfold_orbit_reps(dirname)
+  result = []
+  R, vars = polynomial_ring(GF(2),6)
+  monomials = [] # put the monomials in order here
+  # read the files
+
+  for i in 1:85
+
+    println("Starting file $i")
+    
+    # convert each one to array of cubics
+    bytes = read_orbit_file_to_byte_array(dirname * "/orbitreps-$i.data")
+
+    l = length(bytes)
+    l % 7 != 0 && println("Number of bytes $l is not a multiple of 7... " * string(l % 7) * " mod 7")
+
+    println("Found file with $(div(l,7)) cubic fourfolds")
+
+    for j in 1:7:l
+
+      sevenbytes = bytes[j:j+6]
+      bits = []
+      for k in 0:6
+        # extract the bits in a fancy way
+        single_byte_of_bits = [sevenbytes[k+1] & (0x1<<n) != 0 for n in 0:7]
+
+        # in case of emergency, uncomment the following line of code
+        # reverse(single_byte_of_bits)
+        # ....er, I mean endianness, not emergency
+
+        append!(bits, single_byte_of_bits)
+      end
+
+      poly = GF(2).(bits) .* monomials 
+
+      # append to result
+      push!(result,poly)
+    end
+  end 
+  result
+end#function
+
 end#module
