@@ -4,6 +4,10 @@ using Oscar
 using Memoize
 using Combinatorics
 
+
+include("griffiths-dwork-construction/Utils.jl")
+
+
 exponent_vectors(poly) = leading_exponent_vector.(terms(poly))
 
 """
@@ -333,6 +337,52 @@ function Fstar_basis(p,poly)
   vec(generators)
 end#function
 
+
+"""
+Wrapper for Utils.polynomial_to_vector
+
+Converts the homogeneous polynomial poly
+to a vector.
+
+"""
+function vector(poly)
+  PR = parent(poly)
+  R = coefficient_ring(PR)
+  n = length(vars(PR))
+  Utils.polynomial_to_vector(poly, n, R, PR)
+end
+
+"""
+Takes a linear operator L on the space
+of homogenous polynomials 
+of degree d and computes 
+the matrix representing it.
+
+Currently uses lexographical order
+
+L is a function, which is assumed to be a linear
+endomoprhism on the vector space of homogeneous
+polynomials.
+
+d is the degree of the homogeneous polynomials.
+
+R is the base ring.
+
+"""
+function matrix_of_lin_op(L,d,R)
+
+  n = length(vars(R))
+  monomials = Utils.compute_monomials(n,d,R)
+
+  matrix = zeros(R,0,2)
+  for monomial in monomials
+    evaled = L(monomial)
+    v = vector(evaled)
+    matrix = [matrix v]
+  end
+    
+  matrix
+end
 
 """
 Returns true if the polynomial poly
