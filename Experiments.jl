@@ -118,5 +118,47 @@ function fermat_hypersurface_heights(mind,maxd,minn,maxn,minp,maxp,cutoff=100)
 
 end#function
 
+function height_cubicfourfold(newtonpoly)
+  firstbreak = newtonpoly[2]
+  firstslope = firstbreak[2] / firstbreak[1]
+  for h in 1:10
+    if firstslope ≈ 2 - (1/h)
+      return h
+    end
+  end
+  if firstslope ≈ 2
+    return 11 # really infinity!!
+  end
+  println("This newton polygon doesn't seem to be a cubic fourfold")
+  return -1
+end#function
+
+
+function testquasi1Fsplit_guess(orbdata,newtpolydict)
+  counter = 0
+  for i in eachindex(orbdata)
+    if haskey(newtpolydict,i)
+      # compute the quasi 1 f split height
+      q1fsH = QuasiFSplitness.quasi1FSplitHeight_2CY_lift(2,orbdata[i],10)
+      # compute the newton polygon height
+      newtH = height_cubicfourfold(newtpolydict[i])
+
+      # take care for the case of infinity
+      if 11 < q1fsH 
+        q1fsH = 11
+      end
+
+      # compare them, if one doesn't match, then print it
+      if q1fsH != newtH
+        println("Fourfold at index $i is a counterexample, qfs ht = $q1fsH, ht = $newtH")
+      end
+      counter += 1
+    end
+
+    if counter % 100 == 0
+      println("$counter surfaces checked")
+    end
+  end
+end#function
 
 end#module

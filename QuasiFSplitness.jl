@@ -722,4 +722,68 @@ function quasiFSplitHeight(p,poly,cutoff)
   #FIXME FIXME this fails to do Example 7.8 correctly
 end#function
 
+# MARK - Quasi 1 f split (EXPERIMENTAL)
+
+"""
+Calculates if the hypersuface defined by the 
+polynomial poly is F-split
+
+note that p must be prime for this to have mathematical meaning
+"""
+function is1FSplit(p,poly)
+  #maybe TODO: check that p is prime
+
+  !inPowerOfVariableIdeal(p,p,poly^(2p-2))
+
+end#function
+
+"""
+Calculates the quasi-1-F-split height (I hope)
+in the case that deg(poly) = nvars(parent(poly))
+
+cutoff is inclusive, so it should be the highest possible height
+
+Uses the lift-based algorithm to calculate Δ₁
+
+This is a real guess here.
+"""
+function quasi1FSplitHeight_2CY_lift(p,poly,cutoff)
+  N = length(gens(parent(poly)))
+  
+  #!isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+  is1FSplit(p,poly) && return 1
+
+  f = poly
+
+  Δ₁fpminus1 = Δ₁l(p,f^(2p-2))
+  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+  # Honestly, just calling the ideals I_n could get confusing IMO
+
+  n = 2
+  # The newest generator in the KTY ideal I_2.
+  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+  # be concatenating on new generator at each step until the chain terminates.
+  # See Theorem 5.8 in 2204.10076
+  KTYideal_n_new_gen = θFstar(f^(2p-2))
+
+  while n ≤ cutoff
+    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+
+    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+      # We are quasi-F split of height n! Yay!!
+      return n
+    end
+
+    n = n + 1
+    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+  end
+
+  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end#function
+
 end#module
