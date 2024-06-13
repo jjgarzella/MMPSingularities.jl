@@ -3,6 +3,8 @@ module Experiments
 include("QuasiFSplitness.jl")
 include("RandomPolynomials.jl")
 
+#include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/src/TrivialMultiply.jl")
+
 using .QuasiFSplitness
 using .RandomPolynomials
 
@@ -160,5 +162,39 @@ function testquasi1Fsplit_guess(orbdata,newtpolydict)
     end
   end
 end#function
+
+
+function time_test_flint_vs_gpu()
+    # for p=5
+    p = 5
+
+    benchmark_strings = readlines("benchmarks.txt")
+
+    R, vv = polynomial_ring(GF(p),["x","y","z","w"])
+    (x,y,z,w) = vv
+
+    # This is a hack to overcome the fact that julia eval works in the global scope
+    for (k,v) in Base.@locals
+      @eval $k = $v
+    end
+
+    benchmarks = eval.(Meta.parse.(benchmark_strings))
+
+    for b in benchmarks
+      (b4,time1,bytes1,gctime1,_) = @timed b^(p-1)
+
+      b4ZZ = map_coefficients(t -> lift(ZZ,t),b4)
+
+      (_,time2,bytes2,gctime2,_) = @timed b4ZZ^p
+
+      println("Benchmark: $b")
+      println("with $(length(terms(b))) terms")
+      println("Raise to the 4th: $time1")
+      println("Fourth power has $(length(terms(b4ZZ))) terms")
+      println("Raise to the 5th in ZZ: $time2")
+      println()
+
+    end
+end
 
 end#module

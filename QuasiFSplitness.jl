@@ -291,7 +291,7 @@ function Δ₁l(p,poly)
 
   R = parent(poly)
 
-  originallift = map_coefficients(lift,poly)
+  originallift = map_coefficients(x -> lift(ZZ,x),poly)
 
   #println("Original Lift: ", originallift)
 
@@ -337,6 +337,7 @@ function Fstar_basis(p,poly)
   vec(generators)
 end#function
 
+dim_of_homog_polys(n,d)  = binomial(n+d-1,n-1) # n+d-1 choose n-1
 
 """
 Wrapper for Utils.polynomial_to_vector
@@ -345,11 +346,14 @@ Converts the homogeneous polynomial poly
 to a vector.
 
 """
-function vector(poly)
-  PR = parent(poly)
-  R = coefficient_ring(PR)
-  n = length(vars(PR))
-  Utils.polynomial_to_vector(poly, n, R, PR)
+function vector(f,d,order=:lex)
+  R = parent(f)
+  n = length(gens(R))
+
+  f == zero(R) && return zeros(R,dim_of_homog_polys(n,d))
+  @assert d == total_degree(f) "Expect d to be the degree of f"
+  F = coefficient_ring(R)
+  Utils.polynomial_to_vector(f, n, F, R,order)
 end
 
 """
@@ -369,19 +373,50 @@ d is the degree of the homogeneous polynomials.
 R is the base ring.
 
 """
-function matrix_of_lin_op(L,d,R)
+function matrix_of_lin_op(L,d,R,order=:lex)
 
-  n = length(vars(R))
-  monomials = Utils.compute_monomials(n,d,R)
+  n = length(gens(R))
+  monomials = Utils.compute_monomials(n,d,R,order)
 
-  matrix = zeros(R,0,2)
+  m = length(monomials) # will be an mxm matrix
+
+  i = 0
+
+  matrix = zeros(R,m,0)
   for monomial in monomials
     evaled = L(monomial)
-    v = vector(evaled)
+    v = vector(evaled,d)
     matrix = [matrix v]
+
+    i = i + 1
+    if i % 50 == 0 
+      println("50 rows completed")
+    end
   end
     
   matrix
+end
+
+"""
+Lifts a matrix with entries in GF(p) to ZZ and converts the entries
+to Julia integers
+"""
+lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
+
+"""
+Gives the index of the "critical term", i.e. the one
+that determines whether or not something is quasi-F-split
+for a CY manifold. This term is the degree (p-1)^n
+monomial x_1^(p-1) ... x_n^(p-1)
+
+"""
+function index_of_term_not_in_frobenius_power_CY(p,n,order=:lex)
+  R, vars = polynomial_ring(GF(p),n)
+  
+  crit_term = prod(vars .^ (p-1))
+
+  # perhaps assert this has only one element?
+  findfirst(vector(crit_term,total_degree(crit_term)) .!= 0)
 end
 
 """
@@ -540,6 +575,71 @@ function quasiFSplitHeight_CY_lift(p,poly,cutoff)
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
 
+
+"""
+Calculates the quasi-F-split height
+in the case that deg(poly) = nvars(parent(poly))
+
+cutoff is inclusive, so it should be the highest possible height
+
+Uses the lift-based algorithm to calculate Δ₁
+
+Uses the matrix representaion of θFstar to compute the height.
+
+"""
+function quasiFSplitHeight_CY_lift_matrix(p,poly,cutoff)
+  N = length(gens(parent(poly)))
+  
+  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+  isFSplit(p,poly) && return 1
+
+  f = poly
+
+  fpminus1 = f^(p-1)
+
+  Δ₁fpminus1 = Δ₁l(p,fpminus1)
+  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+  m = N*(p-1)
+  critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
+  start_vector = vector(fpminus1,m)
+  println("creating matrix...")
+  @time M = matrix_of_lin_op(θFstar,m,parent(f))
+  println("matrix finished")
+
+  zzs = zeros(parent(start_vector[1]),m)
+
+  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+  # Honestly, just calling the ideals I_n could get confusing IMO
+
+  n = 2
+  # The newest generator in the KTY ideal I_2.
+  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+  # be concatenating on new generator at each step until the chain terminates.
+  # See Theorem 5.8 in 2204.10076
+
+  println("trying height $n")
+  @time KTYideal_n_new_gen = M * start_vector
+
+  while n ≤ cutoff
+    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    KTYideal_n_new_gen == zzs && return cutoff + 2 # the chain terminated early, provable infinity
+
+    if KTYideal_n_new_gen[critical_ind] != 0
+      # We are quasi-F split of height n! Yay!!
+      return n
+    end
+
+    n = n + 1
+    println("trying height $n")
+    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+    @time KTYideal_n_new_gen = M * KTYideal_n_new_gen
+  end
+
+  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end#function
+
 """
 Calculates the quasi-F-split height
 in the case that deg(poly) = nvars(parent(poly))
@@ -602,6 +702,7 @@ Uses the naive formula in Theorem 5.8 (pg 42) of arXiv:2204.10076
 
 This function seems to be broken right now, its results don't agree
 with Table 2 in 2204.10076
+FIXME: is this^^ still true?
 """
 function quasiFSplitHeight_CY_naive_expansion(p,poly,cutoff)
   N = length(gens(parent(poly)))

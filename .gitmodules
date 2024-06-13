@@ -4,3 +4,6 @@
 [submodule "griffiths-dwork-construction"]
 	path = griffiths-dwork-construction
 	url = https://github.com/kedlaya-s-algorithm-research/griffiths-dwork-construction.git
+[submodule "GPU-Parallelized-Polynomial-Multiplication-in-Julia"]
+	path = GPU-Parallelized-Polynomial-Multiplication-in-Julia
+	url = https://github.com/alexp616/GPU-Parallelized-Polynomial-Multiplication-in-Julia.git
