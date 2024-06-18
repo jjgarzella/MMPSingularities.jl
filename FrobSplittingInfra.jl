@@ -19,6 +19,7 @@ export lift_to_Int64
 export index_of_term_not_in_frobenius_power_CY
 export inPowerOfVariableIdeal
 export isHomog, isFSplit
+export matrix_of_multiply_then_split
 
 
 
@@ -161,7 +162,62 @@ function multiply_then_split(p,f,g)
 end#function
 
 """
+Computes the matrix of the 
+linear operator of multiplying
+by the polynomnial f with coefficients
+coefs and degrees degs and then applying 
+polynomial_frobenius_generator
+on the vector space of homogeneous polynomials
+of degree d
 
+coefs - vector of coefficients
+degs - 2d array of exponent vectors
+"""
+function matrix_of_multiply_then_split(p,coefs,degs,d)
+  n = size(degs,2)
+  mons = Utils.gen_exp_vec(n,d)
+  mons = reduce(vcat,transpose.(mons))
+  nMons = size(mons,1)
+
+  reverseDict = Dict(mons[i] => i for i in 1:length(mons))
+
+  result = zeros(nMons,nMons)
+  
+  #p_minus_ones = fill(n,p-1)
+  #prod_exp_vec_mod_p = zeros(n)
+
+  for i in 1:nMons
+    # compute column i
+    for tInd in 1:size(degs,1)
+
+      relevant = true
+      for k in 1:n
+        #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+        if degs[tInd,k] + mons[i,k] % p != p-1
+          relevant = false
+        end
+      end
+
+      if relevant
+      #if all((degs[tInd,:] .+ mons[i]) .% p .== fill(n,p-1))
+        # this is a relevant term
+        exv_in_prod = degs[tInd,:] .+ mons[i,:]
+        new_exv = divexact.(exv_in_prod .- fill(n,p-1),p)
+        row = reverseDict[new_exv]
+        result[row,i] += coefs[tInd]
+
+      end
+    end
+  end
+
+  result
+end
+
+
+"""
+Returns true if the polynomial inputted is in the
+kernel of the map u that gnerates the dual module
+of F_*
 """
 function in_kernel_poly_frob_generator(p,poly)
   nVars = length(gens(parent(poly)))
