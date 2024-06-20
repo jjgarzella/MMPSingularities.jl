@@ -161,6 +161,110 @@ function multiply_then_split(p,f,g)
     multiply_then_split(p,f,g,fill(p-1, nVars))
 end#function
 
+
+"""
+given two exponent vectors degs1 and degs2, 
+will the term corresponding to them survive
+the frobenius root? 
+
+In other words, to these vectors sum to 
+fill(p-1,n)?
+
+degs1 and degs2 are assumed to be reduced mod p already
+
+This function is meant to be used in tight inner loops,
+so if there's any way to make it faster that would be good.
+
+"""
+function terms_are_relevant(p,degs1,degs2)
+  n = length(degs1)
+  
+  relevant = true
+  for k in 1:n
+    #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+    if degs1[k] + degs2[k] != p-1
+      relevant = false
+    end
+  end
+
+  relevant
+end
+
+#TODO: debug this
+"""
+"""
+function matrix_of_mutliply_then_split_sortmodp(p,coefs,degs,d)
+  n = size(degs,2)
+  mons = Utils.gen_exp_vec(n,d)
+  mons = reduce(vcat,transpose.(mons))
+
+  nMons = size(mons,1)
+  nTerms = size(degs,1)
+    
+  # Preprocessing
+  reverseMons = Dict(mons[i,:] => i for i in 1:size(mons,1))
+  reverseDegs = Dict(degs[i,:] => i for i in 1:size(degs,1))
+
+  degs_modp = degs .% p
+  mons_modp = mons .% p
+
+  #TODO: remplace this with a view to imptove performance later
+  #https://stackoverflow.com/questions/68344823/sortperm-for-matrix-sorting-in-julia-lang
+  degs_perm = sortperm(collect(eachrow(degs_modp)))
+  mons_perm = sortperm(collect(eachrow(mons_modp)))
+
+  # we need to traverse both arrays at once
+  # we consider degs to be on the "left"
+  left = true
+
+  l = 1 # left index
+  r = length(mons) # right index
+
+  result = zeros(nMons,nMons)
+
+  while l ≤ nTerms && 1 ≤ r
+    mon_modp = mons_modp[mons_perm[r],:]
+    term_modp = degs_modp[degs_perm[l],:]
+    if terms_are_relevant(p,mon_modp,term_modp)
+      # we have a match!
+
+      # Short preprocessing step: how many terms in degs have this exponent vector?
+      nMatches = 1
+      while all(degs_modp[degs_perm[l+nMatches],:] .== term_modp)
+        nMatches = nMatches + 1
+      end
+
+      # loop through all monomials and process each one
+      while all(mons_modp[mons_perm[r],:] .== mon_modp)
+
+        mon = mons[mods_perm[r],:]
+        term = degs[degs_perm[l],:]
+
+        # multiply then split the terms
+        newterm = div.(mon .+ term .- fill(p-1,n), p)
+        newcoef = reverseDegs[term] 
+        row = reverseMons[newterm]
+        col = reverseMons[mon]
+        result[row,col] += newcoef
+
+        r = r - 1
+      end
+
+      l = l + nMatches - 1
+    else
+      if left
+        l = l + 1
+        left = false
+      else
+        r = r - 1
+        left = true
+      end
+    end
+  end
+
+  result
+end
+
 """
 Computes the matrix of the 
 linear operator of multiplying
