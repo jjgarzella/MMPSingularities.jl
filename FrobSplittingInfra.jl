@@ -20,6 +20,7 @@ export index_of_term_not_in_frobenius_power_CY
 export inPowerOfVariableIdeal
 export isHomog, isFSplit
 export matrix_of_multiply_then_split
+export matrix_of_multiply_then_split_sortmodp
 
 
 
@@ -192,8 +193,10 @@ end
 
 #TODO: debug this
 """
+Finds the matrix of multiplying by the polynomial with 
+coefficients coefs and degrees degs
 """
-function matrix_of_mutliply_then_split_sortmodp(p,coefs,degs,d)
+function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
   n = size(degs,2)
   mons = Utils.gen_exp_vec(n,d)
   mons = reduce(vcat,transpose.(mons))
@@ -210,44 +213,61 @@ function matrix_of_mutliply_then_split_sortmodp(p,coefs,degs,d)
 
   #TODO: remplace this with a view to imptove performance later
   #https://stackoverflow.com/questions/68344823/sortperm-for-matrix-sorting-in-julia-lang
-  degs_perm = sortperm(collect(eachrow(degs_modp)))
-  mons_perm = sortperm(collect(eachrow(mons_modp)))
+  degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+  mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+
+  #println("mons: $mons")
+  #println("mons sorted: $(mons[mons_perm,:])")
+  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
 
   # we need to traverse both arrays at once
   # we consider degs to be on the "left"
   left = true
 
   l = 1 # left index
-  r = length(mons) # right index
+  r = nMons # right index
 
-  result = zeros(nMons,nMons)
+  result = zeros(Int,nMons,nMons)
 
   while l ≤ nTerms && 1 ≤ r
     mon_modp = mons_modp[mons_perm[r],:]
     term_modp = degs_modp[degs_perm[l],:]
     if terms_are_relevant(p,mon_modp,term_modp)
       # we have a match!
+     
 
       # Short preprocessing step: how many terms in degs have this exponent vector?
       nMatches = 1
-      while all(degs_modp[degs_perm[l+nMatches],:] .== term_modp)
+      while l + nMatches ≤ nTerms && all(degs_modp[degs_perm[l+nMatches],:] .== term_modp)
         nMatches = nMatches + 1
       end
 
       # loop through all monomials and process each one
-      while all(mons_modp[mons_perm[r],:] .== mon_modp)
+      while 1 ≤ r && all(mons_modp[mons_perm[r],:] .== mon_modp)
 
-        mon = mons[mods_perm[r],:]
-        term = degs[degs_perm[l],:]
-
-        # multiply then split the terms
-        newterm = div.(mon .+ term .- fill(p-1,n), p)
-        newcoef = reverseDegs[term] 
-        row = reverseMons[newterm]
-        col = reverseMons[mon]
-        result[row,col] += newcoef
+        mon = mons[mons_perm[r],:]
+        for ll = l:(l + nMatches - 1)
+            term = degs[degs_perm[ll],:]
+            #print("found match ($ll,$r), ")
+            #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+            #print("term $term multiplies with monomial $mon, ")
+            
+            # multiply then split the terms
+            newterm = div.(mon .+ term .- fill(p-1,n), p)
+            newcoefind = reverseDegs[term] 
+            newcoef = coefs[newcoefind]
+            row = reverseMons[newterm]
+            col = reverseMons[mon]
+            #println("setting matrix element ($row,$col)")
+            result[row,col] += newcoef
+        end
 
         r = r - 1
+        left = true
+        #0 < r && println("$r, true monomial: $(mons_perm[r])")
       end
 
       l = l + nMatches - 1
@@ -257,6 +277,7 @@ function matrix_of_mutliply_then_split_sortmodp(p,coefs,degs,d)
         left = false
       else
         r = r - 1
+        #0 < r && println("$r, true monomial: $(mons_perm[r])")
         left = true
       end
     end
