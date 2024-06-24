@@ -191,10 +191,19 @@ function terms_are_relevant(p,degs1,degs2)
   relevant
 end
 
-#TODO: debug this
 """
 Finds the matrix of multiplying by the polynomial with 
 coefficients coefs and degrees degs
+
+Performance TODO list:
+ * try to ensure access inside the loops is regular (this will be important for gpu version)
+ * In terms of allocations, the bottleneck seems to be allocating integers,
+     and this seems to have to do with the way the dictionaries are used.
+     Probably best to reengineer this in a more performant way.
+ * Is it best to make the inner loop into it's own function? 
+     Should try this out and see if Julia speeds up
+
+For now this part isn't the bottleneck anymore, but I'll work on it later
 """
 function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
   n = size(degs,2)
@@ -211,8 +220,7 @@ function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
   degs_modp = degs .% p
   mons_modp = mons .% p
 
-  #TODO: remplace this with a view to imptove performance later
-  #https://stackoverflow.com/questions/68344823/sortperm-for-matrix-sorting-in-julia-lang
+  # this uses a view to imptove performance later
   degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
   mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
   #degs_perm = sortperm(collect(eachrow(degs_modp)))
@@ -230,33 +238,46 @@ function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
   l = 1 # left index
   r = nMons # right index
 
-  result = zeros(Int,nMons,nMons)
+  result = zeros(eltype(coefs),nMons,nMons)
+
+  # used in the loop, but allocate here once
+  newterm = zeros(eltype(degs),n)
+
+  # Note: preallocating these things doesn't seem to change performance
+  #row = 0
+  #col = 0
+  #newcoefind = 0
+  #newcoef = zero(eltype(coefs))
 
   while l ≤ nTerms && 1 ≤ r
-    mon_modp = mons_modp[mons_perm[r],:]
-    term_modp = degs_modp[degs_perm[l],:]
+    mon_modp = @view mons_modp[mons_perm[r],:]
+    term_modp = @view degs_modp[degs_perm[l],:]
     if terms_are_relevant(p,mon_modp,term_modp)
       # we have a match!
      
 
       # Short preprocessing step: how many terms in degs have this exponent vector?
       nMatches = 1
-      while l + nMatches ≤ nTerms && all(degs_modp[degs_perm[l+nMatches],:] .== term_modp)
+      while l + nMatches ≤ nTerms && @view(degs_modp[degs_perm[l+nMatches],:]) == term_modp
         nMatches = nMatches + 1
       end
 
       # loop through all monomials and process each one
-      while 1 ≤ r && all(mons_modp[mons_perm[r],:] .== mon_modp)
+      while 1 ≤ r && @view(mons_modp[mons_perm[r],:]) == mon_modp
 
-        mon = mons[mons_perm[r],:]
+        mon = @view mons[mons_perm[r],:]
         for ll = l:(l + nMatches - 1)
-            term = degs[degs_perm[ll],:]
+            term = @view degs[degs_perm[ll],:]
             #print("found match ($ll,$r), ")
             #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
             #print("term $term multiplies with monomial $mon, ")
             
             # multiply then split the terms
-            newterm = div.(mon .+ term .- fill(p-1,n), p)
+            #newterm = div.(mon .+ term .- fill(p-1,n), p)
+            for i in 1:n
+                newterm[i] = div(mon[i] + term[i] - (p-1), p)
+            end
+
             newcoefind = reverseDegs[term] 
             newcoef = coefs[newcoefind]
             row = reverseMons[newterm]
