@@ -1,11 +1,15 @@
 module Experiments
 
-include("QuasiFSplitness.jl")
+include("FrobSplittingInfra.jl")
+include("QFSCalabiYau.jl")
 include("RandomPolynomials.jl")
 
 #include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/src/TrivialMultiply.jl")
+include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/benchmarks/Benchmarks.jl")
+include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/src/Delta1.jl")
 
-using .QuasiFSplitness
+using .FrobSplittingInfra
+using .QFSCalabiYau
 using .RandomPolynomials
 
 using Oscar
@@ -61,7 +65,7 @@ function quasi_F_split_height_random_bargraph(p,n,d,cutoff,howhigh,numtries;outf
   bars = zeros(Int,cutoff+2)
   for i in 1:numtries
     f = RandomPolynomials.random_homog_poly_mod(p,vars,d)
-    h = QuasiFSplitness.quasiFSplitHeight_CY_lift(p,f,cutoff)
+    h = QFSCalabiYau.quasiFSplitHeight_CY_lift(p,f,cutoff)
     bars[h] = bars[h] + 1
     if howhigh ≤ h 
       println("Found variety with quasi-F-split height $h: $f")
@@ -168,7 +172,7 @@ function time_test_flint_vs_gpu()
     # for p=5
     p = 5
 
-    benchmark_strings = readlines("benchmarks.txt")
+    benchmark_strings = readlines("GPU-Parallelized-Polynomial-Multiplication-in-Julia/benchmarks/benchmarks.txt")
 
     R, vv = polynomial_ring(GF(p),["x","y","z","w"])
     (x,y,z,w) = vv
@@ -197,4 +201,83 @@ function time_test_flint_vs_gpu()
     end
 end
 
-end#module
+function test_gpu_delta1_correct()
+    p = 5
+
+    benchmark_strings = readlines("GPU-Parallelized-Polynomial-Multiplication-in-Julia/benchmarks/benchmarks.txt")
+
+    R, vv = polynomial_ring(GF(p),["x","y","z","w"])
+    (x,y,z,w) = vv
+
+    # This is a hack to overcome the fact that julia eval works in the global scope
+    for (k,v) in Base.@locals
+      @eval $k = $v
+    end
+
+    benchmarks = eval.(Meta.parse.(benchmark_strings))
+    println("Calculating Δ₁ of benchmarks...")
+    delta1s = Δ₁l.(p,benchmarks .^ (p-1))
+    println("Converting Oscar format to gpu format...")
+    oscar_deltaones = Benchmarks.convert_to_gpu_representation.(delta1s)
+
+    pregen = pregen_delta1(4,5)
+
+    println("Testing benchmarks...")
+
+    #TODO: change back to 1
+    for i in 1:length(benchmarks) 
+        b = Benchmarks.convert_to_gpu_representation(benchmarks[i])
+        println("Benchmark $i")
+        polynomial = HomogeneousPolynomial(b...)
+
+
+        d_oscar = oscar_deltaones[i]
+        #println("2877: $(d_oscar[1][2877]), $(d_oscar[2][2877,:])")
+        #error()
+
+        # key step
+        CUDA.@time d_gpu = delta1(polynomial,p,pregen)
+
+
+        nonzero_mask = d_gpu.coeffs .!= 0
+
+        d_gpu.degrees = d_gpu.degrees[nonzero_mask,:]
+        d_gpu.coeffs = d_gpu.coeffs[nonzero_mask]
+
+        perm_gpu = sortperm(collect(eachrow(d_gpu.degrees)))
+        perm_oscar = sortperm(collect(eachrow(d_oscar[2])))
+
+        d_gpu.coeffs = d_gpu.coeffs[perm_gpu]
+        d_gpu.degrees = d_gpu.degrees[perm_gpu,:]
+
+        d_oscar = (d_oscar[1][perm_oscar],d_oscar[2][perm_oscar,:])
+
+        if d_gpu.coeffs == d_oscar[1] &&
+            d_gpu.degrees == d_oscar[2]
+
+            println("Benchmark passed!\n")
+        else
+            println("Benchmark failed: $(benchmarks[i])\n")
+            return (d_gpu, d_oscar)
+        end
+    end
+
+end
+
+"""
+Calculates the log canonical threshold 
+of a determinantal variety
+
+See Miller-Singh-Varbaro
+
+m - number of rows
+n - number of columns
+t - size of minors
+"""
+function lct_determinental(m,n,t)
+    kk = 0:t-1
+    minimum(map(k -> (m-k)*(n-k) // (t-k), kk))
+end
+
+
+end#modul
