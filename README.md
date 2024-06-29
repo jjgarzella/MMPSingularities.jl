@@ -44,7 +44,7 @@ Since some singularities researchers might be new to Julia, we don't assume that
 5. Install MMPSingularities.jl:
   * Open a Julia REPL
   * type `]` to enter package mode
-  * `add [insert-respository-clone-url-here]`
+  * `add https://github.com/jjgarzella/MMPSingularities.git`
 6. Press backspace to exit package mode, then `using MMPSingularities` (TODO: this won't work right now, fix that)
 
 ### Sample code
