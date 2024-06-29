@@ -4,7 +4,7 @@ This package aims to implement cutting-edge-speed algorithms that calculate vari
 
 **This Package is a work in progress, under active development.** Contributions and PRs are welcome. If you want to add an algorithm that hasn't been implemented, please reach out via email to [Jack J. Garzella](https://mathweb.ucsd.edu/~jjgarzel/) to make sure we don't duplicate work.
 
-This package would not be possible without CUDA.jl, and the broader Julia GPU community in general. Moreover, this package is inspired by the Macaulay2 computational algebra system and especially the community behind it. 
+This package would not be possible without [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl), and the broader [Julia GPU](https://juliagpu.org/) community. Moreover, this package is inspired by the [Macaulay2 computational algebra system](https://macaulay2.com/) and especially the community behind it. 
 
 ## Current functionality
 
