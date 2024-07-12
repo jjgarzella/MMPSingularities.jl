@@ -1,16 +1,18 @@
 module Experiments
 
-include("FrobSplittingInfra.jl")
-include("QFSCalabiYau.jl")
-include("RandomPolynomials.jl")
+#include("FrobSplittingInfra.jl")
+#include("QFSCalabiYau.jl")
+#include("RandomPolynomials.jl")
 
-#include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/src/TrivialMultiply.jl")
-include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/benchmarks/Benchmarks.jl")
-include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/src/Delta1.jl")
+#include("../GPUPolynomials.jl/src/TrivialMultiply.jl")
+include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
+include("../GPUPolynomials.jl/src/Delta1.jl")
 
-using .FrobSplittingInfra
-using .QFSCalabiYau
-using .RandomPolynomials
+using MMPSingularities
+
+#using .FrobSplittingInfra
+#using .QFSCalabiYau
+#using .RandomPolynomials
 
 using Oscar
 

@@ -1,9 +1,9 @@
-[submodule "computational-linear-algebra-lib"]
-	path = computational-linear-algebra-lib
-	url = https://github.com/kedlaya-s-algorithm-research/computational-linear-algebra-lib.git
-[submodule "griffiths-dwork-construction"]
-	path = griffiths-dwork-construction
-	url = https://github.com/kedlaya-s-algorithm-research/griffiths-dwork-construction.git
-[submodule "GPU-Parallelized-Polynomial-Multiplication-in-Julia"]
-	path = GPU-Parallelized-Polynomial-Multiplication-in-Julia
-	url = https://github.com/alexp616/GPU-Parallelized-Polynomial-Multiplication-in-Julia.git
+[submodule "DeRham.jl"]
+	path = DeRham.jl
+	url = https://github.com/UCSD-computational-number-theory/DeRham.jl.git
+[submodule "GPUFiniteFieldMatrices.jl"]
+	path = GPUFiniteFieldMatrices.jl
+	url = https://github.com/UCSD-computational-number-theory/GPUFiniteFieldMatrices.jl.git
+[submodule "GPUPolynomials.jl"]
+	path = GPUPolynomials.jl
+	url = https://github.com/alexp616/GPUPolynomials.jl.git

@@ -1,11 +1,11 @@
-module QFSGeneralCase
-
-sing Oscar
-using Memoize
-using Combinatorics
-
-include("FrobSplittingInfra.jl")
-using FrobSplittingInfra
+#module QFSGeneralCase
+#
+#using Oscar
+#using Memoize
+#using Combinatorics
+#
+#include("FrobSplittingInfra.jl")
+#using FrobSplittingInfra
 
 #include("griffiths-dwork-construction/Utils.jl")
 
@@ -167,4 +167,4 @@ end
 
 
 
-end
+#end

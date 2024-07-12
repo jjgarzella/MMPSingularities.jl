@@ -1,8 +1,8 @@
-module PolyData
-
-using Oscar
-
-include("griffiths-dwork-construction/Utils.jl")
+#module PolyData
+#
+#using Oscar
+#
+#include("griffiths-dwork-construction/Utils.jl")
 
 # this is duplicated in another module... fix this later
 exponent_vectors(poly) = leading_exponent_vector.(terms(poly))
@@ -101,7 +101,7 @@ naming convention in the directory provided.
 function read_cubic_fourfold_orbit_reps(dirname,firsttwo=false)
   result = []
   R, vars = polynomial_ring(GF(2),6)
-  monomials = Utils.compute_monomials(6,3,R,vars)
+  monomials = compute_monomials(6,3,R,vars)
   # read the files
 
   N = 85
@@ -268,4 +268,4 @@ function newton_polygon(p,coefs)
 end#function
 
 
-end#module
+#end#module

@@ -1,14 +1,14 @@
-module QFSCalabiYau
-
-using Oscar
-using Memoize
-using Combinatorics
-
-include("./FrobSplittingInfra.jl")
-using .FrobSplittingInfra
-
-include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/benchmarks/Benchmarks.jl")
-include("GPU-Parallelized-Polynomial-Multiplication-in-Julia/src/Delta1.jl")
+#module QFSCalabiYau
+#
+#using Oscar
+#using Memoize
+#using Combinatorics
+#
+#include("./FrobSplittingInfra.jl")
+#using .FrobSplittingInfra
+#
+#include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
+#include("../GPUPolynomials.jl/src/Delta1.jl")
 #include("griffiths-dwork-construction/Utils.jl")
 
 
@@ -525,4 +525,4 @@ end#function
 
 
 
-end
+#end

@@ -1,6 +1,6 @@
-module RandomPolynomials
-
-using Combinatorics
+#module RandomPolynomials
+#
+#using Combinatorics
 
 """
 Returns a list of all monomials in varibles
@@ -62,4 +62,4 @@ function random_homog_poly_mod_k_coefs(p,vars,deg,k)
   sum(coefs .* monomials)
 end#function
 
-end#module
+#end#module

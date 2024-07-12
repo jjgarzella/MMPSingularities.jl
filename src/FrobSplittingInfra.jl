@@ -1,26 +1,26 @@
-module FrobSplittingInfra
-
-using Oscar
-using Memoize
-using Combinatorics
-
-
-include("griffiths-dwork-construction/Utils.jl")
-
-export polynomial_frobenius_splitting
-export polynomial_frobenius_generator
-export multiply_then_split
-export is_kernel_poly_frob_generator
-export multicomibnations
-export Δ₁, Δ₁l, Fstar_basis
-export dim_of_homog_polys
-export vector, matrix_of_lin_op
-export lift_to_Int64
-export index_of_term_not_in_frobenius_power_CY
-export inPowerOfVariableIdeal
-export isHomog, isFSplit
-export matrix_of_multiply_then_split
-export matrix_of_multiply_then_split_sortmodp
+#module FrobSplittingInfra
+#
+#using Oscar
+#using Memoize
+#using Combinatorics
+#
+#
+#include("griffiths-dwork-construction/Utils.jl")
+#
+#export polynomial_frobenius_splitting
+#export polynomial_frobenius_generator
+#export multiply_then_split
+#export is_kernel_poly_frob_generator
+#export multicomibnations
+#export Δ₁, Δ₁l, Fstar_basis
+#export dim_of_homog_polys
+#export vector, matrix_of_lin_op
+#export lift_to_Int64
+#export index_of_term_not_in_frobenius_power_CY
+#export inPowerOfVariableIdeal
+#export isHomog, isFSplit
+#export matrix_of_multiply_then_split
+#export matrix_of_multiply_then_split_sortmodp
 
 
 
@@ -207,7 +207,7 @@ For now this part isn't the bottleneck anymore, but I'll work on it later
 """
 function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
   n = size(degs,2)
-  mons = Utils.gen_exp_vec(n,d)
+  mons = gen_exp_vec(n,d)
   mons = reduce(vcat,transpose.(mons))
 
   nMons = size(mons,1)
@@ -321,7 +321,7 @@ degs - 2d array of exponent vectors
 """
 function matrix_of_multiply_then_split(p,coefs,degs,d)
   n = size(degs,2)
-  mons = Utils.gen_exp_vec(n,d)
+  mons = gen_exp_vec(n,d)
   mons = reduce(vcat,transpose.(mons))
   nMons = size(mons,1)
 
@@ -558,7 +558,7 @@ end#function
 dim_of_homog_polys(n,d)  = binomial(n+d-1,n-1) # n+d-1 choose n-1
 
 """
-Wrapper for Utils.polynomial_to_vector
+Wrapper for polynomial_to_vector
 
 Converts the homogeneous polynomial poly
 to a vector.
@@ -571,7 +571,7 @@ function vector(f,d,order=:lex)
   f == zero(R) && return zeros(R,dim_of_homog_polys(n,d))
   @assert d == total_degree(f) "Expect d to be the degree of f"
   F = coefficient_ring(R)
-  Utils.polynomial_to_vector(f, n, F, R,order)
+  polynomial_to_vector(f, n, F, R,order)
 end
 
 """
@@ -594,7 +594,7 @@ R is the base ring.
 function matrix_of_lin_op(L,d,R,order=:lex)
 
   n = length(gens(R))
-  monomials = Utils.compute_monomials(n,d,R,order)
+  monomials = compute_monomials(n,d,R,order)
 
   m = length(monomials) # will be an mxm matrix
 
@@ -700,4 +700,4 @@ function isFSplit(p,poly)
 end#function
 
 
-end#module
+#end#module
