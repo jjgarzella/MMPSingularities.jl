@@ -3,6 +3,7 @@ module MMPSingularities
 using Oscar
 using Memoize
 using Combinatorics
+using StaticArrays
 
 include("../DeRham.jl/src/Utils.jl")
 

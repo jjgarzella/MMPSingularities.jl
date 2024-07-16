@@ -180,13 +180,19 @@ so if there's any way to make it faster that would be good.
 function terms_are_relevant(p,degs1,degs2)
   n = length(degs1)
   
+  #println("Testing $degs1 vs. $degs2 mod $p")
   relevant = true
   for k in 1:n
+
     #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+    
+    #println("Coord $k: Does $(degs1[k]) == $(degs2[k]) ???")
     if degs1[k] + degs2[k] != p-1
+      #println("It does not! Test fail!")
       relevant = false
     end
   end
+  #println("Tested to $relevant")
 
   relevant
 end
@@ -206,6 +212,142 @@ Performance TODO list:
 For now this part isn't the bottleneck anymore, but I'll work on it later
 """
 function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
+  n = size(degs,2)
+  mons = gen_exp_vec(n,d)
+  #mons = reduce(vcat,transpose.(mons))
+
+  nMons = length(mons)
+  nTerms = size(degs,1)
+    
+  # Preprocessing
+  mons = SVector{n}.(mons)
+  degs = SVector{n}.(eachrow(degs))
+
+  #println(typeof(degs))
+  #println(typeof(mons))
+  # convert to static array
+  
+  #degs = SMatrix{nTerms,n}(degs)
+  #mons = SMatrix{nMons,n}(mons)
+
+  # calculate going from exponent vector to index
+  reverseMons = Dict(mons[i] => i for i in 1:size(mons,1))
+  reverseDegs = Dict(degs[i] => i for i in 1:size(degs,1))
+
+  
+  degs_modp = map(v -> v .% p, degs)
+  mons_modp = map(v -> v .% p, mons)
+
+  degs_perm = sortperm(degs_modp)
+  mons_perm = sortperm(mons_modp)
+
+  # this uses a view to imptove performance later
+  #degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms))
+  #mons_perm = sortperm(view.(Ref(mons_modp),1:nMons))
+  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+  #
+  #println("mons: $mons")
+  #println("mons sorted: $(mons[mons_perm,:])")
+  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+
+  # we need to traverse both arrays at once
+  # we consider degs to be on the "left"
+  left = true
+
+  l = 1 # left index
+  r = nMons # right index
+
+  result = zeros(eltype(coefs),nMons,nMons)
+
+  # used in the loop, but allocate here once
+  newterm = zeros(eltype(degs[1]),n)
+
+  # Note: preallocating these things doesn't seem to change performance
+  #row = 0
+  #col = 0
+  #newcoefind = 0
+  #newcoef = zero(eltype(coefs))
+
+  while l ≤ nTerms && 1 ≤ r
+    mon_modp = @view mons_modp[mons_perm[r]][:]
+    term_modp = @view degs_modp[degs_perm[l]][:]
+    if terms_are_relevant(p,mon_modp,term_modp)
+      # we have a match!
+      # println("Found match: ($l,$r)")
+     
+
+      # Short preprocessing step: how many terms in degs have this exponent vector?
+      nMatches = 1
+      while l + nMatches ≤ nTerms && @view(degs_modp[degs_perm[l+nMatches]][:]) == term_modp
+        nMatches = nMatches + 1
+      end
+
+      # loop through all monomials and process each one
+      while 1 ≤ r && @view(mons_modp[mons_perm[r]][:]) == mon_modp
+
+        mon = @view mons[mons_perm[r]][:]
+        for ll = l:(l + nMatches - 1)
+          term = @view degs[degs_perm[ll]][:]
+          #print("found match ($ll,$r), ")
+          #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+          #print("term $term multiplies with monomial $mon, ")
+          
+          # multiply then split the terms
+          #newterm = div.(mon .+ term .- fill(p-1,n), p)
+          for i in 1:n
+              newterm[i] = div(mon[i] + term[i] - (p-1), p)
+          end
+
+          newcoefind = reverseDegs[term] 
+          newcoef = coefs[newcoefind]
+          row = reverseMons[newterm]
+          col = reverseMons[mon]
+          #println("setting matrix element ($row,$col)")
+          result[row,col] += newcoef
+        end
+
+        r = r - 1
+        left = true
+        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+      end
+
+      l = l + nMatches - 1
+    else
+      if left
+        l = l + 1
+        left = false
+      else
+        r = r - 1
+        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+        left = true
+      end
+    end
+  end
+
+  result
+end
+
+"""
+Finds the matrix of multiplying by the polynomial with 
+coefficients coefs and degrees degs
+
+Performance TODO list:
+ * try to ensure access inside the loops is regular (this will be important for gpu version)
+ * In terms of allocations, the bottleneck seems to be allocating integers,
+     and this seems to have to do with the way the dictionaries are used.
+     Probably best to reengineer this in a more performant way.
+ * Is it best to make the inner loop into it's own function? 
+     Should try this out and see if Julia speeds up
+
+For now this part isn't the bottleneck anymore, but I'll work on it later
+
+This version uses a dictionary of vectors, which allocates when it hashes.
+That's causing the majority of the performance issues.
+
+"""
+function matrix_of_multiply_then_split_sortmodp_dict(p,coefs,degs,d)
   n = size(degs,2)
   mons = gen_exp_vec(n,d)
   mons = reduce(vcat,transpose.(mons))
@@ -306,6 +448,7 @@ function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
 
   result
 end
+
 
 """
 Computes the matrix of the 
