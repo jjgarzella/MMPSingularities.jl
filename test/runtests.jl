@@ -5,6 +5,7 @@ using Oscar
 using CUDA
 
 using Test
+#using JET
 
 function test_matrix_qfs_cy_char_2()
   R, (w,x,y,z) = polynomial_ring(GF(2),4)
@@ -44,7 +45,7 @@ function test_matrix_qfs_cy_char_2()
   (coefs,degs) = MMPSingularities.Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
 
   #println("creating matrix...")
-  #=@time=# M = MMPSingularities.matrix_of_multiply_then_split_sortmodp(p,coefs,degs,m)
+  #=@time=# M = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
 
   #println("doing it again after jitter is primed")
   #@time M = MMPSingularities.matrix_of_multiply_then_split_sortmodp(p,coefs,degs,m)
@@ -86,9 +87,9 @@ function test_matrix_qfs_cy_char_2()
  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0]
 
 
-  display(M)
-  println("True result:")
-  display(M_true)
+  #display(M)
+  #println("True result:")
+  #display(M_true)
 
   @test M == M_true
 end
@@ -129,6 +130,7 @@ function test_time_K3_5()
 
   println()
   #CUDA.@time qfs_height_fn(5,ffour1,10,pregen)
+  #@report_opt qfs_height_fn(5,ffour1,10,pregen)
 
 
   println()
@@ -139,6 +141,6 @@ end
 
 @testset "K3 surfaces" begin
   test_matrix_qfs_cy_char_2()
-  #test_K3_5()
+  test_K3_5()
   test_time_K3_5()
 end
