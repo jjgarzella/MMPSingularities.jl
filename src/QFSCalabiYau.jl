@@ -11,6 +11,7 @@
 #include("../GPUPolynomials.jl/src/Delta1.jl")
 #include("griffiths-dwork-construction/Utils.jl")
 
+using InteractiveUtils
 
 """
 Calculates the quasi-F-split height
@@ -286,7 +287,7 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
-  @time M = matrix_of_multiply_then_split_sortmodp(p,coefs,degs,m)
+  @time M = matrix_of_multiply_then_split_sortmodp_kronecker_noslice(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
   println("matrix finished")
@@ -383,6 +384,12 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
+  #open("llvm_dump_1.ll","a") do io
+  # println(io,@code_llvm matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m),a)
+  #end
+  #println()
+
+  #error()
   @time M = matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
