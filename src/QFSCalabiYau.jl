@@ -338,6 +338,18 @@ end#function
 
 
 """
+    isFSplit2(prime, poly)
+
+Return tuple of whether poly is F-split or not and poly ^ (prime - 1)
+This method exists to actually save f^(p-1) if f isn't F-split
+"""
+function isFSplit2(prime, poly)
+    fpminus1 = poly ^ (prime - 1)
+
+    return !inPowerOfVariableIdeal(prime, prime, fpminus1), fpminus1
+end
+
+"""
 Calculates the quasi-F-split height
 in the case that deg(poly) = nvars(parent(poly))
 
@@ -350,29 +362,26 @@ Uses the matrix representaion of θFstar to compute the height,
 and uses the all-in-one-step method for getting this matrix,
 rather than repeatedly evaluating..
 
-
-
 """
 function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   N = length(gens(parent(poly)))
 
   !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
 
-  isFSplit(p,poly) && return 1
+  isfsplit, fpminus1 = isFSplit2(p, poly)
+  isfsplit && return 1
 
-  f = poly
+  fpminus1_gpu = Benchmarks.convert_to_gpu_representation(fpminus1)
+  fpminus1_homog = HomogeneousPolynomial(fpminus1_gpu...)
 
-  f_gpu = Benchmarks.convert_to_gpu_representation(f)
-  f_homog = HomogeneousPolynomial(f_gpu...)
-  if pregen == nothing
+  if pregen === nothing
     println("creating pregen")
-    @time pregen = pregen_delta1(p-1,p) # right now only p=5 will work 
+    @time pregen = pregen_delta1(size(fpminus1_homog, 2),p)
   end
-
-  fpminus1 = f^(p-1)
-
+  sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+  
   println("creating delta_1")
-  @time Δ₁fpminus1 = delta1(f_homog,p,pregen)
+  @time Δ₁fpminus1 = delta1(fpminus1_homog,p,pregen)
   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
   m = N*(p-1)
@@ -388,7 +397,6 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   # println(io,@code_llvm matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m),a)
   #end
   #println()
-
   #error()
   @time M = matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
 
@@ -427,6 +435,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
 
     if KTYideal_n_new_gen[critical_ind] != 0
       # We are quasi-F split of height n! Yay!!
+      println("height found!: $n")
       return n
     end
 
@@ -438,7 +447,6 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
 
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
-
 
 
 """
