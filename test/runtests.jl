@@ -159,7 +159,6 @@ function test_high_height_CY3_char_2()
 end
 
 function test_K3_3()
-
   p = 3
   best_qfs_height = f -> MMPSingularities.quasiFSplitHeight_CY_lift_matrix(3,f,10)
 
@@ -280,13 +279,57 @@ function test_time_K3_5()
   #CUDA.@time qfs_height_fn(5,ffour1,10,pregen)
   #@report_opt qfs_height_fn(5,ffour1,10,pregen)
 
-
   println()
   #Profile.Allocs.clear()
   #Profile.Allocs.@profile qfs_height_fn(5,ffour1,10,pregen)
 
   Profile.clear()
   Profile.@profile qfs_height_fn(5,ffour1,10,pregen)
+end
+
+
+function test_K3_3_gpu()
+    qfs_height_fn = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu
+
+    pregen = MMPSingularities.pregen_delta1(4,3)
+    R, (x, y, z, w) = polynomial_ring(GF(3),4)
+
+    f1 = x^4 + y^4 + z^4 + 2w^4 + x^2*y*w + y*z^2*w
+    2*w^4 + w*x^2*y + w*y*z^2 + x^4 + y^4 + z^4
+    f2 = x^4 + 2y^4 + 2z^4 + 2w^4 + x*y*z^2
+    2*w^4 + x^4 + x*y*z^2 + 2*y^4 + 2*z^4
+    f3 = x^4 + y^4 + z^4 + w^4 + x^2*z^2 + x*y*z^2 + z^3*w
+    w^4 + w*z^3 + x^4 + x^2*z^2 + x*y*z^2 + y^4 + z^4
+    f4 = x^4 + y^4 + z^4 + w^4 + x^2*z^2 + x*y*z^2
+    w^4 + x^4 + x^2*z^2 + x*y*z^2 + y^4 + z^4
+    f5 = x^4 + y^4 + z^4 + w^4 + x^3*z + z^3*w + y*z^2*w + y*z*w^2
+    w^4 + w^2*y*z + w*y*z^2 + w*z^3 + x^4 + x^3*z + y^4 + z^4
+    f6 = x^4 + y^4 + z^4 + w^4 + x^2*z^2 + x^2*y*z + x*z^3
+    w^4 + x^4 + x^2*y*z + x^2*z^2 + y^4 + z^4
+    f7 = x^4 + y^4 + z^4 + w^4 + x*y^2*z + x*z^2*w + y*z^2*w + y*z*w^2
+    w^4 + w^2*y*z + w*x*z^2 + w*y*z^2 + x^4 + x*y^2*z + y^4 + z^4
+    f8 = x^4 + x^2*y*z + x^2*y*w + 2x^2*z^2 + x*y*w^2 + 2*y^4 + y^3*w + z^4 + w^4
+    w^4 + w^2*x*y + w*x^2*y + w*y^3 + x^4 + x^2*y*z + 2*x^2*z^2 + 2*y^4 + z^4
+    f9 = x^4 + y^4 + z^4 + w^4 + x*y^3 + y^3*w + z^2*w^2 + 2*x*y*z^2 + y*z*w^2
+    w^4 + w^2*y*z + w^2*z^2 + w*y^3 + x^4 + x*y^3 + 2*x*y*z^2 + y^4 + z^4
+    f10 = x^4 + 2*x^2*y*z + x^2*y*w + x*y^2*w + y^4 + y^3*w + y^2*z^2 + 2*y^2*z*w + y^2*w^2 + y*z^3 + y*z^2*w + y*z*w^2 + z^4 + z*w^3
+    w^3*z + w^2*y^2 + w^2*y*z + w*x^2*y + w*x*y^2 + w*y^3 + 2*w*y^2*z + w*y*z^2 + x^4 + 2*x^2*y*z + y^4 + y^2*z^2 + y*z^3 + z^4
+    finfty = x^4 + y^4 + z^4 + w^4
+    w^4 + x^4 + y^4 + z^4
+    fm10 = 2w^4 + x*w^3 + w^2*x^2 + w^2*x*y + w^2*y*z + 2w*x^3 + 2w*x^2*y + w*x*y^2 + w*x*y*z + w*x*z^2 + w*y^3 + 2w*y^2*z + w*y*z^2 + x^4 + 2*x^3*y + x^2*y*z + x^2*z^2 + x*y^3 + x*y^2*z + 2x*y*z^2 + x*z^3 + 2*y^4 + 2*y^3*z + y^2*z^2 + y*z^3 + 2*z^4
+
+    @test qfs_height_fn(3, f1, 10, pregen) == 1
+    @test qfs_height_fn(3, f2, 10, pregen) == 2
+    @test qfs_height_fn(3, f3, 10, pregen) == 3
+    @test qfs_height_fn(3, f4, 10, pregen) == 4
+    @test qfs_height_fn(3, f5, 10, pregen) == 5
+    @test qfs_height_fn(3, f6, 10, pregen) == 6
+    @test qfs_height_fn(3, f7, 10, pregen) == 7
+    @test qfs_height_fn(3, f8, 10, pregen) == 8
+    @test qfs_height_fn(3, f9, 10, pregen) == 9
+    @test qfs_height_fn(3, f10, 10, pregen) == 10
+    infty_substitute = qfs_height_fn(3, finfty, 10, pregen)
+    @test infty_substitute == 11 || infty_substitute == 12
 end
 
 
@@ -297,5 +340,6 @@ end
   #test_K3_3()
   #test_K3_5()
   #test_K3_5_matrix()
-  test_time_K3_5()
+  #test_time_K3_5()
+  test_K3_3_gpu()
 end
