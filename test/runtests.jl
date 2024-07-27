@@ -225,8 +225,6 @@ function test_K3_5()
   @test best_qfs_height(ftwo2) == 2
   @test best_qfs_height(fthree1) == 3
   @test best_qfs_height(ffour1) == 4
-
-
 end
 
 function test_K3_5_matrix()
@@ -265,7 +263,6 @@ function test_time_K3_5()
   qfs_height_fn = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu
 
   pregen = MMPSingularities.pregen_delta1(4,5)
-
 
   R, (x1,x2,x3,x4) = polynomial_ring(GF(5),4)
 

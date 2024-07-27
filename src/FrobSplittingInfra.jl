@@ -336,7 +336,7 @@ function inPowerOfVariableIdeal(p,m,poly)
   # no elements for the zero polynomial
   poly == zero(poly) && return true
 
-
+  
   for i in 1:length(poly)
     ev = exponent_vector(poly,i)
 

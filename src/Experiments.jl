@@ -5,16 +5,16 @@ module Experiments
 #include("RandomPolynomials.jl")
 
 #include("../GPUPolynomials.jl/src/TrivialMultiply.jl")
-include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
-include("../GPUPolynomials.jl/src/Delta1.jl")
+include("MMPSingularities.jl")
 
-using MMPSingularities
+using .MMPSingularities
 
 #using .FrobSplittingInfra
 #using .QFSCalabiYau
 #using .RandomPolynomials
 
 using Oscar
+using CUDA
 
 function test_Δ₁(p,polys)
   
@@ -46,8 +46,10 @@ function find_highest_quasi_F_split_height_random(p,n,d,cutoff,howhigh,numtries;
 
   results = []
   for i in 1:numtries
-    f = RandomPolynomials.random_homog_poly_mod(p,vars,d)
-    h = QuasiFSplitness.quasiFSplitHeight_CY_lift(p,f,cutoff)
+    f = MMPSingularities.random_homog_poly_mod(p,vars,d)
+    println(f)
+    println(typeof(f))
+    h = MMPSingularities.quasiFSplitHeight_CY_lift(p,f,cutoff)
     if howhigh ≤ h 
       println("Found variety with quasi-F-split height $h: $f")
       push!(results,(h,f))
@@ -66,8 +68,8 @@ function quasi_F_split_height_random_bargraph(p,n,d,cutoff,howhigh,numtries;outf
   results = []
   bars = zeros(Int,cutoff+2)
   for i in 1:numtries
-    f = RandomPolynomials.random_homog_poly_mod(p,vars,d)
-    h = QFSCalabiYau.quasiFSplitHeight_CY_lift(p,f,cutoff)
+    f = MMPSingularities.random_homog_poly_mod(p,vars,d)
+    h = MMPSingularities.quasiFSplitHeight_CY_lift(p,f,cutoff)
     bars[h] = bars[h] + 1
     if howhigh ≤ h 
       println("Found variety with quasi-F-split height $h: $f")
