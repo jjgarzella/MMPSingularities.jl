@@ -368,6 +368,7 @@ rather than repeatedly evaluating..
 
 """
 function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
+  println("Doing check...")
   N = length(gens(parent(poly)))
 
   !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
@@ -379,16 +380,11 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   fpminus1_homog = HomogeneousPolynomial(fpminus1_gpu...)
 
   if pregen === nothing
-    # println("creating pregen")
     pregen = pregen_delta1(size(fpminus1_homog, 2),p)
-    # @time pregen = pregen_delta1(size(fpminus1_homog, 2),p)
   end
   sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   
-#   println("creating delta_1")
-#   @time Δ₁fpminus1 = delta1(fpminus1_homog,p,pregen)
   Δ₁fpminus1 = delta1(fpminus1_homog,p,pregen)
-  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
@@ -546,7 +542,57 @@ function quasiFSplitHeight_CY_naive_expansion(p,poly,cutoff)
   return cutoff + 1
 end#function
 
+function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
+    println("Doing check...")
+    N = length(gens(parent(poly)))
 
+    f = poly
+    !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+    isfsplit, fpminus1 = isFSplit2(p, poly)
+    isfsplit && return 1
+
+    fpminus1_gpu = Benchmarks.convert_to_gpu_representation(fpminus1)
+    fpminus1_homog = HomogeneousPolynomial(fpminus1_gpu...)
+
+    if pregen === nothing
+        pregen = pregen_delta1(size(fpminus1_homog, 2),p)
+    end
+    sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+    
+    Δ₁fpminus1_gpu = delta1(fpminus1_homog,p,pregen)
+
+    R, (x, y, z, w) = polynomial_ring(poly.parent.base_ring, 4)
+    Δ₁fpminus1 = zero(R)
+
+    for (i, coeff) in enumerate(Δ₁fpminus1_gpu.coeffs)
+        exp_row = Δ₁fpminus1_gpu.degrees[i, :]
+        term = coeff * x^exp_row[1] * y^exp_row[2] * z^exp_row[3] * w^exp_row[4]
+        Δ₁fpminus1 += term
+    end
+
+    θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+    n = 2
+    KTYideal_n_new_gen = θFstar(f^(p-1))
+  
+    println("Finding height...")
+    while n ≤ cutoff
+        #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+        KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+
+    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+    # We are quasi-F split of height n! Yay!!
+        return n
+    end
+
+    n = n + 1
+    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+    end
+
+    return cutoff + 1
+end
 
 
 #end
