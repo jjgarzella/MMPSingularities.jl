@@ -31,6 +31,7 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 5, outputFileName = "
 
         # So that memory doesn't explode
         if samples % 1000 == 0
+            println("$samples samples completed")
             CSV.write("experiments/CalabiYau/$(outputFileName)", df, append=true)
             empty!(df)
         end
