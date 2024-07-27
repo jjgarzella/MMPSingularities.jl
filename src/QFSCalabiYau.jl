@@ -21,6 +21,8 @@ cutoff is inclusive, so it should be the highest possible height
 
 """
 function quasiFSplitHeight_CY(p,poly,cutoff)
+  println("Running CPU CY...")
+
   N = length(gens(parent(poly)))
 
   !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
@@ -28,8 +30,9 @@ function quasiFSplitHeight_CY(p,poly,cutoff)
   isFSplit(p,poly) && return 1
 
   f = poly
-
+  println("Computing delta1...")
   Δ₁fpminus1 = Δ₁(p,f^(p-1))
+  println("delta1 finished!")
   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
   # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
@@ -41,7 +44,8 @@ function quasiFSplitHeight_CY(p,poly,cutoff)
   # be concatenating on new generator at each step until the chain terminates.
   # See Theorem 5.8 in 2204.10076
   KTYideal_n_new_gen = θFstar(f^(p-1))
-
+  
+  println("Finding height...")
   while n ≤ cutoff
     #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
     KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
