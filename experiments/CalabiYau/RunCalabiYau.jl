@@ -23,14 +23,14 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 5, outputFileName = "
         try
             height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(prime, poly, 10, pregen)
             if height >= howHigh && height <= 10
-	    	# Because of the bug, we also need to check with the CPU version
-	    	if (MMPSingularities.quasiFSplitHeight_CY(prime, poly, 10) == height)
+	    	# Because of the bug, we also need to check with a guaranteed working version
+                if (MMPSingularities.quasiFSplitHeight_CY_gpu(prime, poly, 10, pregen) == height)
                     push!(df, [height, poly])
-		else
-		    open("experiments/CalabiYau/erroredpolynomials.txt", "a") do file
-                	write(file, "math bug: $poly\n")
-            	    end
-		end
+                else
+                    open("experiments/CalabiYau/erroredpolynomials.txt", "a") do file
+                        write(file, "math bug: $poly\n")
+                    end
+                end
             end
         catch (e)
             str = "$e $poly\n"
