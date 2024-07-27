@@ -368,7 +368,6 @@ rather than repeatedly evaluating..
 
 """
 function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
-  println("Doing check...")
   N = length(gens(parent(poly)))
 
   !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
@@ -543,7 +542,7 @@ function quasiFSplitHeight_CY_naive_expansion(p,poly,cutoff)
 end#function
 
 function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
-    println("Doing check...")
+    # println("Doing check...")
     N = length(gens(parent(poly)))
 
     f = poly
@@ -576,7 +575,7 @@ function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
     n = 2
     KTYideal_n_new_gen = θFstar(f^(p-1))
   
-    println("Finding height...")
+    # println("Finding height...")
     while n ≤ cutoff
         #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
         KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity

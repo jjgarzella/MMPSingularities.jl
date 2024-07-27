@@ -25,7 +25,8 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 5, outputFileName = "
             if height >= howHigh && height <= 10
 	    	# Because of the bug, we also need to check with a guaranteed working version
                 if (MMPSingularities.quasiFSplitHeight_CY_gpu(prime, poly, 10, pregen) == height)
-                    push!(df, [height, poly])
+                    println("height $height found!")
+		    push!(df, [height, poly])
                 else
                     open("experiments/CalabiYau/erroredpolynomials.txt", "a") do file
                         write(file, "math bug: $poly\n")
