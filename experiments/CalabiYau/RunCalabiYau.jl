@@ -8,7 +8,7 @@ using Oscar
 using Dates
 
 println("Imports finished!")
-function run_experiment(;numVars = 4, prime = 5, howHigh = 5, outputFileName = "heights.csv", time = Second(100))
+function run_experiment(;numVars = 4, prime = 5, howHigh = 9, outputFileName = "heights.csv", time = Second(100))
     R, vars = polynomial_ring(GF(prime), numVars)
 
     startTime = now()
@@ -18,16 +18,20 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 5, outputFileName = "
     samples = 0
     println("Starting...")
     while (now() - startTime) < time
-        numTerms = rand(1:binomial(2 * numVars - 1, numVars))
+        numTerms = rand(5:binomial(2 * numVars - 1, numVars))
         poly = MMPSingularities.random_homog_poly_mod_k_coefs(prime, vars, numVars, numTerms)
         try
             height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(prime, poly, 10, pregen)
             if height >= howHigh && height <= 10
 	    	# Because of the bug, we also need to check with a guaranteed working version
-                if (MMPSingularities.quasiFSplitHeight_CY_gpu(prime, poly, 10, pregen) == height)
-                    println("height $height found!")
-		    push!(df, [height, poly])
+		realheight = MMPSingularities.quasiFSplitHeight_CY_gpu(prime, poly, 10, pregen)
+                if (realheight >= height)
+                    println("height $realheight found!")
+		    push!(df, [realheight, poly])
                 else
+		    open("experiments/CalabiYau/overestimated.txt", "a") do file
+			write(file, "$poly height was overestimated! matrix height: $height, real height: $realheight")
+		    end
                     open("experiments/CalabiYau/erroredpolynomials.txt", "a") do file
                         write(file, "math bug: $poly\n")
                     end
