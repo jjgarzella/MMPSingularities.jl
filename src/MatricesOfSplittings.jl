@@ -1463,7 +1463,7 @@ function matrix_of_multiply_then_split_sortmodp_kronecker2(p,coefs,degs,d)
         termModP = encodedDegsModP[degs_perm[l]]
         if monModP + termModP == relevant
             nMatches = 1
-            cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+            cmpTerm = encodedDegsModP[degs_perm[l + nMatches - 1]]
 
             while l + nMatches ≤ nTerms && cmpTerm == termModP
                 nMatches += 1
