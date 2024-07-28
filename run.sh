@@ -23,3 +23,5 @@ fi
 julia --project -e 'using Pkg; Pkg.update()'
 julia --project -e "include(\"experiments/CalabiYau/RunCalabiYau.jl\"); run_experiment(time = $time_arg)" &
 julia --project -e "include(\"experiments/CalabiYau/RunCalabiYau.jl\"); run_experiment(time = $time_arg)" &
+julia --project -e "include(\"experiments/CalabiYau/RunCalabiYau.jl\"); run_experiment(time = $time_arg)" &
+julia --project -e "include(\"experiments/CalabiYau/RunCalabiYau.jl\"); run_experiment(time = $time_arg)" &

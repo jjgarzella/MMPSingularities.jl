@@ -40,12 +40,16 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 7, time = Second(100)
                     println("height $realheight found!")
                     push!(df, [realheight, poly])
                     if realheight > height
+		        str = "Matrix method returned $height, safe method returned $height, polynomial: $poly"
+		        println("Underestimated! $str")
                         open("experiments/CalabiYau/underestimated.txt", "a") do file
                             write(file, "Matrix method returned $height, safe method returned $height, polynomial: $poly\n")
                         end
                     end
                 else
-                    open("experiments/CalabiYau/overestimated.txt", "a") do file
+		    str = "Matrix method returned $height, safe method returned $height, polynomial: $poly"
+                    println("Overestimated! $str")
+		    open("experiments/CalabiYau/overestimated.txt", "a") do file
                         write(file, "Matrix method returned $height, safe method returned $height, polynomial: $poly\n")
                     end
                 end
@@ -57,6 +61,7 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 7, time = Second(100)
             open("experiments/CalabiYau/erroredpolynomials.txt", "a") do file
                 write(file, str)
             end
+
         end
         samples += 1
 
@@ -64,7 +69,7 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 7, time = Second(100)
         if samples % 1000 == 0
             println("$samples Samples completed")
         end
-        if samples % 10000 == 0
+        if samples % 1000 == 0
             push!(dfheights, heights) 
             CSV.write("experiments/CalabiYau/heights.csv", df, append=true)
             CSV.write("experiments/CalabiYau/heightsbargraph.csv", dfheights, append=true)
@@ -74,7 +79,7 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 7, time = Second(100)
         end
     end
 
-    CSV.write("experiments/CalabiYau/$(outputFileName)", df, append=true)
+    CSV.write("experiments/CalabiYau/heights.csv", df, append=true)
     CSV.write("experiments/CalabiYau/heightsbargraph.csv", dfheights, append=true)
 
     println("Experiment finished! $samples samples computed.")
