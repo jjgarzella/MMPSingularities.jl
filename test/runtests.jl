@@ -158,6 +158,17 @@ function test_high_height_CY3_char_2()
   @test best_qfs_height(f60) == 60
 end
 
+function test_K3_5_cpu()
+    p = 5
+    best_qfs_height = f -> MMPSingularities.quasiFSplitHeight_CY(5,f,10)
+  
+    R, (x1, x2, x3, x4) = polynomial_ring(GF(3), 4)
+   
+    f9 = x1^3*x2 + 3*x1*x4^3 + 3*x2^2*x3*x4 + 3*x3^4
+    println(best_qfs_height(f9))
+    @test 1 == 1
+end
+
 function test_K3_3()
   p = 3
   best_qfs_height = f -> MMPSingularities.quasiFSplitHeight_CY_lift_matrix(3,f,10)
@@ -209,9 +220,10 @@ function test_K3_3()
 end
 
 function test_K3_5()
-
   p = 5
-  best_qfs_height = f -> MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p,f,10)
+  pregen = MMPSingularities.pregen_delta1(4,5)
+#   best_qfs_height = f -> MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p,f,10, pregen)
+  best_qfs_height = f -> MMPSingularities.quasiFSplitHeight_CY_gpu(p,f,10, pregen)
 
   R, (x1,x2,x3,x4) = polynomial_ring(GF(p),4)
 
@@ -219,7 +231,6 @@ function test_K3_5()
   ftwo2 = x1^4 + x1^3*x2 + 2*x1^3*x4 + x1^2*x2*x3 + 4*x1^2*x3^2 + 4*x1^2*x3*x4 + x1^2*x4^2 + 4*x1*x2^3 + 4*x1*x2^2*x3 + 3*x1*x2^2*x4 + 2*x1*x2*x3^2 + 4*x1*x2*x3*x4 + 3*x1*x2*x4^2 + 4*x1*x3^3 + 2*x1*x4^3 + x2^3*x3 + x2^3*x4 + 4*x2^2*x3^2 + 3*x2^2*x3*x4 + 4*x2*x3^3 + x2*x3^2*x4 + x2*x3*x4^2 + 2*x2*x4^3 + x3^2*x4^2 + x3*x4^3
   fthree1 = 2*x1^4 + x1^3*x2 + 3*x1^3*x3 + x1^3*x4 + x1^2*x2*x3 + 4*x1^2*x2*x4 + x1^2*x3^2 + 4*x1^2*x3*x4 + 3*x1^2*x4^2 + 4*x1*x2^3 + 3*x1*x2^2*x3 + x1*x2^2*x4 + 2*x1*x2*x3^2 + 3*x1*x2*x3*x4 + x1*x3^3 + 4*x1*x3*x4^2 + 2*x1*x4^3 + x2^3*x3 + 3*x2^3*x4 + 4*x2^2*x3^2 + 4*x2^2*x3*x4 + x2^2*x4^2 + 2*x2*x3^3 + 3*x2*x3^2*x4 + 4*x2*x3*x4^2 + 3*x2*x4^3 + 4*x3^4 + 3*x3^3*x4 + 2*x3*x4^3 + 3*x4^4
   ffour1 = 4*x1^4 + 2*x1^3*x3 + 4*x1^3*x4 + 3*x1^2*x2^2 + 3*x1^2*x2*x3 + 4*x1^2*x2*x4 + 2*x1^2*x3*x4 + x1^2*x4^2 + 3*x1*x2^3 + x1*x2^2*x3 + x1*x2^2*x4 + x1*x2*x3^2 + x1*x2*x3*x4 + x1*x2*x4^2 + 2*x1*x3^3 + 2*x1*x3^2*x4 + x1*x3*x4^2 + 2*x1*x4^3 + 4*x2^4 + 3*x2^3*x3 + x2^3*x4 + 3*x2^2*x3^2 + 3*x2^2*x3*x4 + x2^2*x4^2 + 2*x2*x3^3 + 3*x2*x3^2*x4 + x2*x3*x4^2 + 3*x2*x4^3 + 3*x3^4 + 2*x3^3*x4 + 4*x3^2*x4^2 + x3*x4^3
-
 
   @test best_qfs_height(ftwo1) == 2
   @test best_qfs_height(ftwo2) == 2
@@ -286,7 +297,7 @@ end
 
 
 function test_K3_3_gpu()
-    qfs_height_fn = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu
+    qfs_height_fn = MMPSingularities.quasiFSplitHeight_CY_gpu
 
     pregen = MMPSingularities.pregen_delta1(4,3)
     R, (x, y, z, w) = polynomial_ring(GF(3),4)
@@ -339,4 +350,5 @@ end
   #test_K3_5_matrix()
   #test_time_K3_5()
   test_K3_3_gpu()
+  #test_K3_5_cpu()
 end
