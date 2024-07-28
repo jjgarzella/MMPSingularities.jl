@@ -376,7 +376,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
 
   if pregen === nothing
     println("creating pregen")
-    @time pregen = pregen_delta1(size(fpminus1_homog, 2),p)
+    @time pregen = pregen_delta1(size(fpminus1_homog.degrees, 2),p)
   end
   sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   
