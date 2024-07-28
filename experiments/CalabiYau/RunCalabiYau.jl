@@ -8,7 +8,7 @@ using Oscar
 using Dates
 
 println("Imports finished!")
-function run_experiment(;numVars = 4, prime = 5, howHigh = 7, time = Second(100))
+function run_experiment(;numVars = 4, prime = 5, howHigh = 9, time = Second(100))
     R, vars = polynomial_ring(GF(prime), numVars)
 
     startTime = now()
@@ -21,8 +21,7 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 7, time = Second(100)
     println("Starting...")
     heights = zeros(Int, 11)
     while (now() - startTime) < time
-        numTerms = rand(5:binomial(2 * numVars - 1, numVars))
-        poly = MMPSingularities.random_homog_poly_mod_k_coefs(prime, vars, numVars, numTerms)
+        poly = MMPSingularities.random_homog_poly(prime, vars, numVars)
         try
             height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(prime, poly, 10, pregen)
             if height == 11 || height == 12
