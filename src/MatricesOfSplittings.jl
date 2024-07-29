@@ -525,6 +525,8 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
 
   nMons = size(mons,1)
   nTerms = size(degs,1)
+  println("nMons: $nMons")
+  println("nTerms: $nTerms")
     
   monkron(v) = kronecker(v,d,n)
   degkron(v) = kronecker(v,p*d,n)
@@ -616,6 +618,13 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
   while l ≤ nTerms && 1 ≤ r
     #mon_modp = @view mons_modp[mons_perm[r],:]
     setslice!(mon_modp,mons_modp,mons_perm[r])
+    if mon_modp == [0,1,1,0] || mon_modp == [0,1,2,2]
+      println("found problem: ($l,$r), $mon_modp")
+    end
+
+    if 41 ≤ r && r ≤ 50
+      println("Found r that should be relevant: $r")
+    end
     #term_modp = @view degs_modp[degs_perm[l],:]
     setslice!(term_modp,degs_modp,degs_perm[l])
     if terms_are_relevant(p,mon_modp,term_modp)
@@ -624,7 +633,7 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
       # Short preprocessing step: how many terms in degs have this exponent vector?
       nMatches = 1
       #cmp_term = @view(degs_modp[degs_perm[l+nMatches],:])
-      setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+      l + nMatches ≤ nTerms && setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
       while l + nMatches ≤ nTerms && cmp_term == term_modp
         nMatches = nMatches + 1
         l + nMatches ≤ nTerms && setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
@@ -636,6 +645,9 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
       setslice!(cmp_mon,mons_modp,mons_perm[r])
 
       while 1 ≤ r && cmp_mon == mon_modp
+        if 41 ≤ r && r ≤ 50
+          println("Found r that should be relevant in innter while: $r")
+        end
 
         #mon = @view mons[mons_perm[r],:]
         setslice!(mon,mons,mons_perm[r])
@@ -679,18 +691,22 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
         end
 
         r = r - 1
+        println("r: $r")
         left = true
         #0 < r && println("$r, true monomial: $(mons_perm[r])")
         1 ≤ r && setslice!(cmp_mon,mons_modp,mons_perm[r])
       end
 
       l = l + nMatches - 1
+      println("l: $l")
     else
       if left
         l = l + 1
+        println("l: $l")
         left = false
       else
         r = r - 1
+        println("r: $r")
         #0 < r && println("$r, true monomial: $(mons_perm[r])")
         left = true
       end
@@ -1301,9 +1317,9 @@ function vector(f,d,order=:lex)
   R = parent(f)
   n = length(gens(R))
 
-  f == zero(R) && return zeros(R,dim_of_homog_polys(n,d))
-  @assert d == total_degree(f) "Expect d to be the degree of f"
   F = coefficient_ring(R)
+  f == zero(R) && return zeros(F,dim_of_homog_polys(n,d))
+  @assert d == total_degree(f) "Expect d to be the degree of f"
   polynomial_to_vector(f, n, F, R,order)
 end
 
@@ -1333,11 +1349,16 @@ function matrix_of_lin_op(L,d,R,order=:lex)
 
   i = 0
 
-  matrix = zeros(R,m,0)
+  matrix = zeros(coefficient_ring(R),m,0)
+  println(monomials)
   for monomial in monomials
     evaled = L(monomial)
     v = vector(evaled,d)
     matrix = [matrix v]
+
+    if leading_exponent_vector(monomial) == [14,1,1,0]
+      println(v)
+    end
 
     i = i + 1
     if i % 50 == 0 

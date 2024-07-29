@@ -287,7 +287,7 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
-  @time M = matrix_of_multiply_then_split_sortmodp_kronecker_noslice(p,coefs,degs,m)
+  @time M = matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
   println("matrix finished")
