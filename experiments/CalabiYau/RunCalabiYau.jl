@@ -21,7 +21,7 @@ function run_experiment(;numVars = 4, prime = 5, howHigh = 9, time = Second(100)
     println("Starting...")
     heights = zeros(Int, 11)
     while (now() - startTime) < time
-        poly = MMPSingularities.random_homog_poly(prime, vars, numVars)
+        poly = MMPSingularities.random_homog_poly_mod(prime, vars, numVars)
         try
             height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(prime, poly, 10, pregen)
             if height == 11 || height == 12
