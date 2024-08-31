@@ -8,7 +8,7 @@ using Oscar
 using Dates
 
 println("Imports finished!")
-function run_experiment(;numVars = 4, prime = 5, howHigh = 9, time = Second(100))
+function run_experiment(;numVars = 4, prime = 7, howHigh = 9, time = Second(100))
     R, vars = polynomial_ring(GF(prime), numVars)
 
     startTime = now()

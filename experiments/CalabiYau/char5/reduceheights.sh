@@ -14,4 +14,3 @@ END {
   }
   printf "\n"
 }' $FILE > tmpfile && mv tmpfile $FILE
-
