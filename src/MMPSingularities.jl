@@ -11,7 +11,7 @@ include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")
 
 include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
-include("../GPUPolynomials.jl/src/Delta1.jl")
+include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
 using .Delta1
 
 include("QFSCalabiYau.jl")

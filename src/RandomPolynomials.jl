@@ -62,4 +62,14 @@ function random_homog_poly_mod_k_coefs(p,vars,deg,k)
   sum(coefs .* monomials)
 end#function
 
+function random_homog_poly_mod_restricted(p, vars, mons)
+    coefs = rand(0:p-1, length(mons))
+
+    res = zero(vars[1])
+    for i in eachindex(coefs)
+        res += coefs[i] * mons[i]
+    end
+
+    return res
+end
 #end#module

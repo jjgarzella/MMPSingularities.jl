@@ -340,6 +340,26 @@ function test_K3_3_gpu()
     @test infty_substitute == 11 || infty_substitute == 12
 end
 
+function test_K3_7_gpu()
+    R, vars = polynomial_ring(GF(7), 4)
+    x1, x2, x3, x4 = vars
+
+    mons = [x1^3*x2, x1^3*x3, x1^3*x4, x1^2*x2^2, x1^2*x2*x3, x1^2*x2*x4, x1^2*x3^2, x1^2*x3*x4, x1^2*x4^2, x1*x2^3, x1*x2^2*x3, x1*x2^2*x4, x1*x2*x3^2, x1*x2*x3*x4, x1*x2*x4^2, x1*x3^3, x1*x3^2*x4, x1*x3*x4^2, x1*x4^3, x2^3*x3, x2^3*x4, x2^2*x3^2, x2^2*x3*x4, x2^2*x4^2, x2*x3^3, x2*x3^2*x4, x2*x3*x4^2, x2*x4^3, x3^3*x4, x3^2*x4^2, x3*x4^3, x4^4]
+
+    
+
+    f = MMPSingularities.random_homog_poly_mod_restricted(7, vars, mons)
+
+    println("f: ")
+    println(f)
+    pregen = MMPSingularities.pregen_delta1(4, 7)
+
+    qfs_height_fn = MMPSingularities.quasiFSplitHeight_CY_gpu
+
+    height = qfs_height_fn(7, f, 10, pregen)
+    println("height of f: $height")
+end
+
 
 @testset "K3 surfaces" begin
   #test_matrix_qfs_cy_char_2()
@@ -349,6 +369,7 @@ end
   #test_K3_5()
   #test_K3_5_matrix()
   #test_time_K3_5()
-  test_K3_3_gpu()
+#   test_K3_3_gpu()
   #test_K3_5_cpu()
+  test_K3_7_gpu()
 end

@@ -375,15 +375,14 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   isfsplit, fpminus1 = isFSplit2(p, poly)
   isfsplit && return 1
 
-  fpminus1_gpu = Benchmarks.convert_to_gpu_representation(fpminus1)
-  fpminus1_homog = HomogeneousPolynomial(fpminus1_gpu...)
+  fpminus1_homog = MMPSingularities.Polynomials.HomogeneousPolynomial(fpminus1)
 
   if pregen === nothing
-    pregen = pregen_delta1(size(fpminus1_homog, 2),p)
+    pregen = MMPSingularities.delta1.pregen_delta1(size(fpminus1_homog, 2),p)
   end
-  sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+  MMPSingularities.Polynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   
-  Δ₁fpminus1 = delta1(fpminus1_homog,p,pregen)
+  Δ₁fpminus1 = MMPSingularities.delta1(fpminus1_homog,p; pregen = pregen)
 
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
