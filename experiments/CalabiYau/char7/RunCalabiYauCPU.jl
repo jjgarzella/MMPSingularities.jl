@@ -1,29 +1,23 @@
 using Distributed
-addprocs()
+addprocs(4)  # Add 4 worker processes
 
 @everywhere begin
-    println("\nStarting imports...")
-    include("../../../src/MMPSingularities.jl")
-    using .MMPSingularities
-
     using CSV
     using DataFrames
     using Oscar
     using Dates
+    include("../../../src/MMPSingularities.jl")
+    using .MMPSingularities
 
-    println("Imports finished!")
-
-    function run_experiment(process_id; numVars = 4, prime = 7, howHigh = 9, time = Second(100))
+    function run_experiment(numVars = 4, prime = 7, howHigh = 9, time = Second(100))
         R, vars = polynomial_ring(GF(prime), numVars)
-
-        x1, x2, x3, x4 = vars
 
         startTime = now()
         dfheights = DataFrame(I = Int[], II = Int[], III = Int[], IV = Int[], V = Int[], VI = Int[], VII = Int[], VIII = Int[], IX = Int[], X = Int[], inf = Int[])
         df = DataFrame(QFSheight = Int[], polynomial = FqMPolyRingElem[])
 
         samples = 0
-        println("Process $process_id starting...")
+        println("Process $(getpid()) starting...")
 
         heights = zeros(Int, 11)
 
@@ -36,17 +30,17 @@ addprocs()
                 heights[height] += 1
             end
 
-            if height >= 5
+            if height >= 8
                 push!(df, [height, poly])
             end
             samples += 1
 
+            println("Process $(getpid()): $samples Samples completed")
+
             if samples % 1000 == 0
-                println("Process $process_id: $samples Samples completed")
-                lock(write_lock) do
-                    CSV.write("experiments/CalabiYau/char7/heights.csv", df, append=true)
-                    CSV.write("experiments/CalabiYau/char7/heightsbargraph.csv", dfheights, append=true)
-                end
+                println("Process $(getpid()): $samples Samples completed")
+                CSV.write("experiments/CalabiYau/char7/heights.csv", df, append=true)
+                CSV.write("experiments/CalabiYau/char7/heightsbargraph.csv", dfheights, append=true)
                 empty!(df)
                 empty!(dfheights)
                 heights = zeros(Int, length(heights))
@@ -54,15 +48,12 @@ addprocs()
         end
 
         push!(dfheights, heights)
-        lock(write_lock) do
-            CSV.write("experiments/CalabiYau/char7/cpuheights.csv", df, append=true)
-            CSV.write("experiments/CalabiYau/char7/cpuheightsbargraph.csv", dfheights, append=true)
-        end
-
-        println("Process $process_id finished! $samples samples computed.")
+        CSV.write("experiments/CalabiYau/char7/cpuheights.csv", df, append=true)
+        CSV.write("experiments/CalabiYau/char7/cpuheightsbargraph.csv", dfheights, append=true)
     end
 end
 
-@distributed for process_id in 1:nworkers()
-    run_experiment(process_id)
+@distributed for _ in 1:nworkers()
+    run_experiment()
 end
+
