@@ -142,9 +142,8 @@ function quasiFSplitHeight_CY_lift_matrix(p,poly,cutoff)
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = vector(fpminus1,m)
-  println("creating matrix...")
-  @time M = matrix_of_lin_op(θFstar,m,parent(f))
-  println("matrix finished:")
+
+  M = matrix_of_lin_op(θFstar,m,parent(f))
   display(M)
 
   zzs = zeros(parent(start_vector[1]),m)
@@ -158,7 +157,6 @@ function quasiFSplitHeight_CY_lift_matrix(p,poly,cutoff)
   # be concatenating on new generator at each step until the chain terminates.
   # See Theorem 5.8 in 2204.10076
 
-  println("trying height $n")
   @time KTYideal_n_new_gen = M * start_vector
 
   while n ≤ cutoff
@@ -171,7 +169,6 @@ function quasiFSplitHeight_CY_lift_matrix(p,poly,cutoff)
     end
 
     n = n + 1
-    println("trying height $n")
     #println("next one should be: ", θFstar(KTYideal_n_new_gen))
     @time KTYideal_n_new_gen = M * KTYideal_n_new_gen
   end
@@ -211,11 +208,9 @@ function quasiFSplitHeight_CY_lift_matrix_combined(p,poly,cutoff)
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
-  @time (coefs,degs) = Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
-  println("Δ₁ has $(size(degs,1)) terms")
+  (coefs,degs) = Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
 
-  println("creating matrix...")
-  @time M = matrix_of_multiply_then_split(p,coefs,degs,m)
+  M = matrix_of_multiply_then_split(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
   println("matrix finished:")
@@ -291,7 +286,7 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
-  @time M = matrix_of_multiply_then_split_sortmodp_kronecker_noslice(p,coefs,degs,m)
+  @time M = matrix_of_multiply_then_split_sortmodp_kronecker2(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
   println("matrix finished")
