@@ -5,20 +5,6 @@ usage() {
   exit 1
 }
 
-while getopts "t:" opt; do
-  case ${opt} in
-    t )
-      time_arg=$OPTARG
-      ;;
-    \? )
-      usage
-      ;;
-  esac
-done
-
-if [ -z "$time_arg" ]; then
-  usage
-fi
 
 julia --project -e 'using Pkg; Pkg.update()'
-julia --project -e "include(\"experiments/CalabiYau/char7/RunCalabiYauCPU.jl\"); run_experiment(time = $time_arg)" &
+julia --project -e "include(\"experiments/CalabiYau/char7/CPURunCalabiYau.jl\")" &
