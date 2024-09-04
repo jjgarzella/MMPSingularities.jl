@@ -34,7 +34,7 @@ function run_experiment(;numVars = 4, prime = 7, howHigh = 9, time = Second(100)
             heights[height] += 1
         end
 
-        if height >= 5
+        if height >= 8
             push!(df, [height, poly])
         end
         # try
