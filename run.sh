@@ -5,7 +5,7 @@ usage() {
   exit 1
 }
 
-num_processes=5
+num_processes=11
 
 while getopts "t:n:" opt; do
   case ${opt} in
