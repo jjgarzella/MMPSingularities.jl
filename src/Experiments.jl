@@ -8,7 +8,10 @@ module Experiments
 include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
 include("../GPUPolynomials.jl/src/Delta1.jl")
 
-using MMPSingularities
+using CUDA
+
+include("MMPSingularities.jl")
+using .MMPSingularities
 
 #using .FrobSplittingInfra
 #using .QFSCalabiYau
@@ -281,5 +284,25 @@ function lct_determinental(m,n,t)
     minimum(map(k -> (m-k)*(n-k) // (t-k), kk))
 end
 
+function braid_arrangement(n)
+    R, vars = polynomial_ring(ZZ,n)
+    nV = length(vars)
+
+    list = []
+    result = R(1)
+    for i = 1:nV # the first one
+        for j = i+1:nV
+            result *= vars[i] - vars[j]
+            push!(list,vars[i] - vars[j])
+        end
+    end
+    (result,list)
+end
+
+# n = 2, lct = 1    fpt2 = 1
+# n = 3, lct = 2/3
+# n = 4, lct = 1/2
+# n = 5, lct = 2/5
+# n = 6, lct = 1/3
 
 end#modul
