@@ -157,6 +157,7 @@ function test_delta1_char_3()
   p = 3
   N = 4
 
+  R, (x, y, z, w) = polynomial_ring(GF(3), 4)
   f = x^4 + 2y^4 + 2z^4 + 2w^4 + x*y*z^2
 
   # CPU method
@@ -174,18 +175,25 @@ function test_delta1_char_3()
   MMPSingularities.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   Δ₁fpminus1 = MMPSingularities.delta1(fpminus1_homog,p,pregen)
 
-  cpu_degs = gpu_rep[2]
-  gpu_degs = Δ₁fpminus1.degrees
+  gpuDelta1 = zero(R)
 
-  cpu_coeffs = gpu_rep[1]
-  gpu_coeffs = Δ₁fpminus1.coeffs
+  for (i, coeff) in enumerate(Δ₁fpminus1.coeffs)
+    exp_row = Δ₁fpminus1.degrees[i, :]
+    term = coeff * x^exp_row[1] * y^exp_row[2] * z^exp_row[3] * w^exp_row[4]
+    gpuDelta1 += term
+  end
 
-  @test size(cpu_degs) == size(gpu_degs)
-  @test length(cpu_coeffs) == length(gpu_coeffs)
+  @test DD1 == gpuDelta1
+#   cpu_degs = gpu_rep[2]
+#   gpu_degs = Δ₁fpminus1.degrees
 
-  @test cpu_degs == gpu_degs
-  @test cpu_coeffs == gpu_coeffs 
+#   cpu_coeffs = gpu_rep[1]
+#   gpu_coeffs = Δ₁fpminus1.coeffs
+
+#   @test size(cpu_degs) == size(gpu_degs)
+#   @test length(cpu_coeffs) == length(gpu_coeffs)
+
+#   @test cpu_degs == gpu_degs
+#   @test cpu_coeffs == gpu_coeffs 
 
 end
-
-
