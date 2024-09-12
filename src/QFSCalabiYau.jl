@@ -207,7 +207,7 @@ function quasiFSplitHeight_CY_lift_matrix_combined(p,poly,cutoff)
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
-  @time (coefs,degs) = Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
+  @time (coefs,degs) = convert_to_gpu_representation(Δ₁fpminus1)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
@@ -283,7 +283,7 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
   println("converting to gpu representation")
-  @time (coefs,degs) = Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
+  @time (coefs,degs) = convert_to_gpu_representation(Δ₁fpminus1)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
@@ -371,17 +371,17 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   isfsplit, fpminus1 = isFSplit2(p, poly)
   isfsplit && return 1
 
-  fpminus1_gpu = Benchmarks.convert_to_gpu_representation(fpminus1)
-  fpminus1_homog = HomogeneousPolynomial(fpminus1_gpu...)
+  fpminus1_gpu = convert_to_gpu_representation(fpminus1)
+  fpminus1_homog = GPUPolynomials.HomogeneousPolynomial(fpminus1_gpu...)
 
   if pregen === nothing
     println("creating pregen")
     @time pregen = pregen_delta1(size(fpminus1_homog.degrees, 2),p)
   end
-  sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+  GPUPolynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   
   println("creating delta_1")
-  @time Δ₁fpminus1 = delta1(fpminus1_homog,p,pregen)
+  @time Δ₁fpminus1 = delta1(fpminus1_homog,p;pregen)
   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
   m = N*(p-1)

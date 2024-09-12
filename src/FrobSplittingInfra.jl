@@ -276,7 +276,7 @@ function Δ₁l(p,poly)
   crossterms = withcrossterms - nocrossterms
 
   #println("Just cross terms: ", crossterms)
-  (x,y,z,w) = gens(ZR)
+  #(x,y,z,w) = gens(ZR)
   #println("Interesting coefficient: $(coeff(withcrossterms,x^14*y^27*z^11*w^28))")
 
   Δlift = map_coefficients(x -> divexact(x,p),crossterms)
