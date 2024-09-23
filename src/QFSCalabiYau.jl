@@ -197,6 +197,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   GPUPolynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   
   println("creating delta_1")
+  #TODO: GPUPolynomials. ???
   @time Δ₁fpminus1 = delta1(fpminus1_homog,p;pregen)
   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
@@ -280,14 +281,14 @@ function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
     isfsplit && return 1
 
     fpminus1_gpu = convert_to_gpu_representation(fpminus1)
-    fpminus1_homog = HomogeneousPolynomial(fpminus1_gpu...)
+    fpminus1_homog = GPUPolynomials.HomogeneousPolynomial(fpminus1_gpu...)
 
     if pregen === nothing
         pregen = pregen_delta1(size(fpminus1_homog, 2),p)
     end
-    sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+    GPUPolynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
     
-    Δ₁fpminus1_gpu = delta1(fpminus1_homog,p,pregen)
+    Δ₁fpminus1_gpu = delta1(fpminus1_homog,p;pregen)
 
     R, (x, y, z, w) = polynomial_ring(poly.parent.base_ring, 4)
     Δ₁fpminus1 = zero(R)

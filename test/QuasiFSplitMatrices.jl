@@ -86,6 +86,38 @@ function test_matrix_qfs_cy_char_2()
   @test M == M_true
 end
 
+function test_K3_5_matrix()
+
+  p = 5 
+  N = 4
+
+  R, (x1,x2,x3,x4) = polynomial_ring(GF(p),4)
+
+
+  ffour1 = 4*x1^4 + 2*x1^3*x3 + 4*x1^3*x4 + 3*x1^2*x2^2 + 3*x1^2*x2*x3 + 4*x1^2*x2*x4 + 2*x1^2*x3*x4 + x1^2*x4^2 + 3*x1*x2^3 + x1*x2^2*x3 + x1*x2^2*x4 + x1*x2*x3^2 + x1*x2*x3*x4 + x1*x2*x4^2 + 2*x1*x3^3 + 2*x1*x3^2*x4 + x1*x3*x4^2 + 2*x1*x4^3 + 4*x2^4 + 3*x2^3*x3 + x2^3*x4 + 3*x2^2*x3^2 + 3*x2^2*x3*x4 + x2^2*x4^2 + 2*x2*x3^3 + 3*x2*x3^2*x4 + x2*x3*x4^2 + 3*x2*x4^3 + 3*x3^4 + 2*x3^3*x4 + 4*x3^2*x4^2 + x3*x4^3
+
+  @test MMPSingularities.quasiFSplitHeight_CY_lift(p,ffour1,10) == 4
+
+  f = ffour1
+  fpminus1 = f^(p-1)
+
+  Δ₁fpminus1 = MMPSingularities.Δ₁l(p,fpminus1)
+  #θFstar(a) = MMPSingularities.polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+  m = N*(p-1)
+  critical_ind = MMPSingularities.index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)  start_vector = lift_to_Int64(vector(fpminus1,m))
+  (coefs,degs) = MMPSingularities.GPUPolynomials.convert_to_gpu_representation(Δ₁fpminus1)
+
+  #println("creating matrix...")
+  #=@time=# 
+  M_true = MMPSingularities.matrix_of_multiply_then_split_sortmodp_dict(p,coefs,degs,m)
+
+  M = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
+
+  @test M == M_true
+
+end
+
 function test_matrix_K3(p,f)
   N = 4
 
@@ -172,8 +204,8 @@ function test_delta1_char_3()
   fpminus1_gpu = MMPSingularities.convert_to_gpu_representation(fpminus1)
   fpminus1_homog = MMPSingularities.GPUPolynomials.HomogeneousPolynomial(fpminus1_gpu...)
   pregen = MMPSingularities.pregen_delta1(size(fpminus1_homog.degrees, 2),p)
-  MMPSingularities.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
-  Δ₁fpminus1 = MMPSingularities.delta1(fpminus1_homog,p,pregen)
+  MMPSingularities.GPUPolynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+  Δ₁fpminus1 = MMPSingularities.delta1(fpminus1_homog,p;pregen)
 
   gpuDelta1 = zero(R)
 
@@ -197,3 +229,4 @@ function test_delta1_char_3()
 #   @test cpu_coeffs == gpu_coeffs 
 
 end
+
