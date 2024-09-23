@@ -5,6 +5,8 @@ using Memoize
 using Combinatorics
 using StaticArrays
 
+using InteractiveUtils
+
 using DeRham
 #include("../DeRham.jl/src/Utils.jl")
 
@@ -20,8 +22,8 @@ using GPUFiniteFieldMatrices
 include("QFSCalabiYau.jl")
 include("QFSGeneralCase.jl")
 
-include("RandomPolynomials.jl")
-include("PolyData.jl")
+#include("RandomPolynomials.jl")
+#include("PolyData.jl")
 
 # exports here
 

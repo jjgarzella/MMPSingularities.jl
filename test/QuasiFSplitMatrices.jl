@@ -34,7 +34,7 @@ function test_matrix_qfs_cy_char_2()
 
   m = N*(p-1)
   critical_ind = MMPSingularities.index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)  start_vector = lift_to_Int64(vector(fpminus1,m))
-  (coefs,degs) = MMPSingularities.Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
+  (coefs,degs) = MMPSingularities.convert_to_gpu_representation(Δ₁fpminus1)
 
   #println("creating matrix...")
   #=@time=# M = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
@@ -97,7 +97,7 @@ function test_matrix_K3(p,f)
   
   m = N*(p-1)
   critical_ind = MMPSingularities.index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)  start_vector = vector(fpminus1,m)
-  (coefs,degs) = MMPSingularities.Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
+  (coefs,degs) = MMPSingularities.convert_to_gpu_representation(Δ₁fpminus1)
   display(degs)
 
   println("creating matrix...")
@@ -115,7 +115,7 @@ function test_matrix_K3(p,f)
 
   m = N*(p-1)
   critical_ind = MMPSingularities.index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)  start_vector = lift_to_Int64(vector(fpminus1,m))
-  (coefs,degs) = MMPSingularities.Benchmarks.convert_to_gpu_representation(Δ₁fpminus1)
+  (coefs,degs) = MMPSingularities.convert_to_gpu_representation(Δ₁fpminus1)
   display(degs)
 
   #println("creating matrix...")
@@ -164,13 +164,13 @@ function test_delta1_char_3()
   
   fpminus1 = f^(p-1)
   DD1 = MMPSingularities.Δ₁l(p,fpminus1)
-  gpu_rep = MMPSingularities.Benchmarks.convert_to_gpu_representation(DD1)
+  gpu_rep = MMPSingularities.convert_to_gpu_representation(DD1)
 
   # GPU method
   
   isfsplit, fpminus1 = MMPSingularities.isFSplit2(p, f)
-  fpminus1_gpu = MMPSingularities.Benchmarks.convert_to_gpu_representation(fpminus1)
-  fpminus1_homog = MMPSingularities.HomogeneousPolynomial(fpminus1_gpu...)
+  fpminus1_gpu = MMPSingularities.convert_to_gpu_representation(fpminus1)
+  fpminus1_homog = MMPSingularities.GPUPolynomials.HomogeneousPolynomial(fpminus1_gpu...)
   pregen = MMPSingularities.pregen_delta1(size(fpminus1_homog.degrees, 2),p)
   MMPSingularities.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
   Δ₁fpminus1 = MMPSingularities.delta1(fpminus1_homog,p,pregen)
