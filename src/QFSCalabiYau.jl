@@ -64,9 +64,6 @@ function quasiFSplitHeight_CY_lift(p,poly,cutoff)
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
 
-
-
-
 """
 Calculates the quasi-F-split height
 in the case that deg(poly) = nvars(parent(poly))
@@ -103,7 +100,7 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
   println("Δ₁ has $(size(degs,1)) terms")
 
   println("creating matrix...")
-  @time M = matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
+  @time M = matrix_of_multiply_then_split_sortmodp_kronecker2_correct(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
   println("matrix finished")
@@ -215,7 +212,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   #end
   #println()
   #error()
-  @time M = matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,m)
+  @time M = matrix_of_multiply_then_split_sortmodp_kronecker2_correct(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
   println("matrix finished")

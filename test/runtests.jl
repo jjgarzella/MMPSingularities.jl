@@ -11,21 +11,18 @@ using Profile
 #include("../src/MMPSingularities.jl")
 using MMPSingularities
 
-include("QuasiFSplitMatrices.jl")
-include("CalabiYauHeights.jl")
+#include("TestCases.jl")
+#include("CalabiYauHeights.jl")
+#include("QuasiFSplitMatrices.jl")
+
+using Revise
+includet("TestCases.jl")
+includet("CalabiYauHeights.jl")
+includet("QuasiFSplitMatrices.jl")
+
+
 
 @testset "K3 surfaces" begin
-  #test_matrix_qfs_cy_char_2()
-  #test_high_height_CY3_char_2()
-  
-  # TODO: known to fail
-  #test_matrix_qfs_cy_char_3()
-  
-  #test_delta1_char_3()
-  #test_K3_3()
-  #test_K3_3_gpu()
-
-  #test_K3_5()
-  test_K3_5_matrix()
-  #test_time_K3_5()
+  #test_heights_all()
+  #test_matrices_all()
 end
