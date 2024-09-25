@@ -88,22 +88,22 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
 
   fpminus1 = f^(p-1)
 
-  println("creating delta_1:")
-  @time Δ₁fpminus1 = Δ₁l(p,fpminus1)
+  #println("creating delta_1:")
+  #=@time=# Δ₁fpminus1 = Δ₁l(p,fpminus1)
   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
-  println("converting to gpu representation")
-  @time (coefs,degs) = convert_to_gpu_representation(Δ₁fpminus1)
-  println("Δ₁ has $(size(degs,1)) terms")
+  #println("converting to gpu representation")
+  #=@time=# (coefs,degs) = convert_to_gpu_representation(Δ₁fpminus1)
+  #println("Δ₁ has $(size(degs,1)) terms")
 
-  println("creating matrix...")
-  @time M = matrix_of_multiply_then_split_sortmodp_kronecker2_correct(p,coefs,degs,m)
+  #println("creating matrix...")
+  #=@time=# M = matrix_of_multiply_then_split_sortmodp_kronecker2_correct(p,coefs,degs,m)
 
   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
-  println("matrix finished")
+  #println("matrix finished")
   #display(M)
 
   nMonomials = length(start_vector)
@@ -120,10 +120,10 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
 
   #println("matrix: $M")
 
-  println("critical index: $critical_ind")
+  #println("critical index: $critical_ind")
 
-  println("trying height $n")
-  @time KTYideal_n_new_gen = (M * start_vector) .% p
+  #println("trying height $n")
+  #=@time=# KTYideal_n_new_gen = (M * start_vector) .% p
 
   while n ≤ cutoff
     #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
@@ -133,7 +133,7 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
 
 #    println(KTYideal_n_new_gen)
 
-    println("critical value: $(KTYideal_n_new_gen[critical_ind])")
+    #println("critical value: $(KTYideal_n_new_gen[critical_ind])")
 
     if KTYideal_n_new_gen[critical_ind] != 0
       # We are quasi-F split of height n! Yay!!
@@ -141,9 +141,9 @@ function quasiFSplitHeight_CY_lift_sort(p,poly,cutoff)
     end
 
     n = n + 1
-    println("trying height $n")
+    #println("trying height $n")
     #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-    @time KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
+    #=@time=# KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
   end
 
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
