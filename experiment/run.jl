@@ -58,9 +58,8 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
 end
 
 function periodic_writer(heights, thread_dicts, p)
-    sleep(30)
     # Write every x seconds
-    x = 10
+    x = 300
     while true
         sleep(x)
         reducedHeights = reduce(+, heights; dims = 1)
@@ -88,4 +87,4 @@ function run(n, p)
     run_experiment(heights, thread_dicts, experimentThreads, n, p)
 end
 
-run(4, 3)
+run(4, 7)
