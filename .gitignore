@@ -1,6 +1,3 @@
 Manifest.toml
 
-*.pb.gz
-*.swp
-
-pastegunk.txt
+experiment/key.jl

@@ -1,7 +1,7 @@
 #module FrobSplittingInfra
 #
 #using Oscar
-#using Memoize
+using Memoize
 #using Combinatorics
 #
 #
@@ -80,8 +80,6 @@ function polynomial_frobenius_splitting(p,poly,indices)
     exp_vec = exponent_vector(t,1)
 
     if all((exp_vec .% p) .== indices)
-
-
       new_exp_vec = divexact.(exp_vec .- indices,p) # the difision should be exact by the if statement
       
       c = coeff(t,1)
@@ -111,32 +109,6 @@ function polynomial_frobenius_generator(p,poly)
 
   polynomial_frobenius_splitting(p,poly,fill(p-1, nVars))
 end#function
-
-"""
-Returns true if the polynomial inputted is in the
-kernel of the map u that gnerates the dual module
-of F_*
-"""
-function in_kernel_poly_frob_generator(p,poly)
-  nVars = length(gens(parent(poly)))
-  indices = fill(p-1,nVars)
-
-  for i in 1:length(poly)
-
-    t = term(poly, i)
-    exp_vec = exponent_vector(t,1)
-
-    if all((exp_vec .% p) .== indices)
-
-      # this term will not be zero!
-      return false
-    end
-  end
-
-  return true
-end#function
-
-# MARK - computing Δ_1
 
 """
 This is not as space-efficient as it could be
