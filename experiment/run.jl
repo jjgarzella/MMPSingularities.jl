@@ -50,10 +50,8 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
             end
 
             if samples % 1000 == 0
-                heights[Threads.threadid(), :] .= localheights
-                for i in eachindex(localheights)
-                    localheights[i] = 0
-                end
+                heights[Threads.threadid(), :] .+= localheights
+                fill!(localheights, 0)
             end
         end
     end
