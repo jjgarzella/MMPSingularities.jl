@@ -7,8 +7,8 @@ using StaticArrays
 
 using InteractiveUtils
 
-using DeRham
-#include("../DeRham.jl/src/Utils.jl")
+#using DeRham
+include("Utils.jl")
 
 include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")
