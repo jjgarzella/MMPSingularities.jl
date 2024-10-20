@@ -1,23 +1,25 @@
 module MMPSingularities
-
+include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
+using .GPUPolynomials
 using Oscar
 using Memoize
 using Combinatorics
 using StaticArrays
-
+using CUDA
+using Serialization
 using InteractiveUtils
 
-using DeRham
 #include("../DeRham.jl/src/Utils.jl")
+
+
+
+include("delta1/delta1.jl")
 
 include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")
 
-#include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
-#include("../GPUPolynomials.jl/src/Delta1.jl")
-#using .Delta1
-using GPUPolynomials
-using GPUFiniteFieldMatrices
+
+# using GPUFiniteFieldMatrices
 
 include("QFSCalabiYau.jl")
 include("QFSGeneralCase.jl")

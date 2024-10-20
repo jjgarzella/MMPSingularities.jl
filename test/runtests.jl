@@ -8,8 +8,8 @@ using Test
 using Profile
 #using JET
 
-#include("../src/MMPSingularities.jl")
-using MMPSingularities
+include("../src/MMPSingularities.jl")
+# using MMPSingularities
 
 #include("TestCases.jl")
 #include("CalabiYauHeights.jl")
@@ -19,6 +19,7 @@ using Revise
 includet("TestCases.jl")
 includet("CalabiYauHeights.jl")
 includet("QuasiFSplitMatrices.jl")
+includet("../src/delta1/delta1_test.jl")
 
 
 

@@ -226,8 +226,7 @@ end
 ## w^4 + w^2*x*y + w*x^2*y + w*y^3 + x^4 + x^2*y*z + 2*x^2*z^2 + 2*y^4 + z^4
 #  f9 = x^4 + y^4 + z^4 + w^4 + x*y^3 + y^3*w + z^2*w^2 + 2*x*y*z^2 + y*z*w^2
 ## w^4 + w^2*y*z + w^2*z^2 + w*y^3 + x^4 + x*y^3 + 2*x*y*z^2 + y^4 + z^4
-#  f10 = x^4 + 2*x^2*y*z + x^2*y*w + x*y^2*w + y^4 + y^3*w + y^2*z^2 + 2*y^2*z*w + y^2*w^2 + y*z^3 + y*z^2*w + y*z*w^2 + z^4 + z*w^3
-## w^3*z + w^2*y^2 + w^2*y*z + w*x^2*y + w*x*y^2 + w*y^3 + 2*w*y^2*z + w*y*z^2 + x^4 + 2*x^2*y*z + y^4 + y^2*z^2 + y*z^3 + z^4
+#  f10 = x^4 + 2*x^2*y*z + x^2*y*w + x*y^2*w + y^4 + y^3*w + y^2*z^2 + 2*y^2*z*w + y^2*w^2 + y*z^3 + y*z^2*w + y*z*w^2 + z^4 + z*w^3 + w^3*z + # w^2*y^2 + w^2*y*z + w*x^2*y + w*x*y^2 + w*y^3 + 2*w*y^2*z + w*y*z^2 + x^4 + 2*x^2*y*z + y^4 + y^2*z^2 + y*z^3 + z^4
 #  finfty = x^4 + y^4 + z^4 + w^4
 ## w^4 + x^4 + y^4 + z^4
 #  fm10 = 2w^4 + x*w^3 + w^2*x^2 + w^2*x*y + w^2*y*z + 2w*x^3 + 2w*x^2*y + w*x*y^2 + w*x*y*z + w*x*z^2 + w*y^3 + 2w*y^2*z + w*y*z^2 + x^4 + 2*x^3*y + x^2*y*z + x^2*z^2 + x*y^3 + x*y^2*z + 2x*y*z^2 + x*z^3 + 2*y^4 + 2*y^3*z + y^2*z^2 + y*z^3 + 2*z^4

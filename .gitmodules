@@ -6,4 +6,4 @@
 	url = https://github.com/UCSD-computational-number-theory/GPUFiniteFieldMatrices.jl.git
 [submodule "GPUPolynomials.jl"]
 	path = GPUPolynomials.jl
-	url = https://github.com/alexp616/GPUPolynomials.jl.git
+	url = https://github.com/alexp616/GPUPolynomials.jl
