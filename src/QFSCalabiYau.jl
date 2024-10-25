@@ -135,7 +135,7 @@ rather than repeatedly evaluating..
 function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   N = length(gens(parent(poly)))
 
-  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+  !isHomog(poly,ofdegree=N) && return -1
 
   isfsplit, fpminus1 = isFSplit2(p, poly)
   isfsplit && return 1
@@ -146,7 +146,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
     println("creating pregen")
     pregen = pregen_delta1(N,p)
   end
-  
+
   Δ₁fpminus1 = delta1(fpminus1_homog,p;pregen = pregen)
 
   m = N*(p-1)
@@ -154,7 +154,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   start_vector = lift_to_Int64(vector(fpminus1,m))
 
   M = matrix_of_multiply_then_split_sortmodp_kronecker(Δ₁fpminus1.poly)
-
+  println()
   nMonomials = length(start_vector)
   zzs = zeros(parent(start_vector[1]),nMonomials)
 

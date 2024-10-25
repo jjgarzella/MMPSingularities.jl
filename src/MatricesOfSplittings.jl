@@ -433,17 +433,164 @@ function kronecker_opt(vec, n, kroneckerPregen::Vector{Int})#,returntype=Int64)
     s
 end
 
+function encode_degs(degs, bits)
+    result = zeros(UInt64, size(degs, 2))
+    for i in eachindex(result)
+        result[i] = base2kron(view(degs, :, i), bits)
+    end
+
+    return result
+end
+
+function base2kron(vec, bits)
+    result = zero(UInt64)
+    for i in eachindex(vec)
+        result += vec[i] << (bits * (length(vec) - i))
+    end
+    return result
+end
+
+function base2divkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
+    result = zero(T)
+    mask = (one(T) << bits) - one(T)
+    for i in 0:(numVars - 1)
+        element = (num >> (bits * i)) & mask
+        divided = element ÷ m
+        result += divided << (bits * i)
+    end
+    return result
+end
+
+function base2modkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
+    result = zero(T)
+    mask = (one(T) << bits) - one(T)
+    for i in 0:(numVars - 1)
+        element = (num >> (bits * i)) & mask
+        modded = element % m
+        result += modded << (bits * i)
+    end
+    return result
+end
+
 function matrix_of_multiply_then_split_sortmodp_kronecker(poly::FqMPolyRingElem)
+    
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    d = Int(n * (p - 1))
+
+    coeffs = get_coeffs(poly)
+    degs = get_exps(poly)
+
+    return matrix_of_multiply_then_split_sortmodp_kronecker(p, coeffs, degs, d, n, poly.data.bits)
+end
+
+function matrix_of_multiply_then_split_sortmodp_kronecker(p::UInt, coefs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
+    mons = gen_exp_vec(numVars,d)
+    mons = reduce(hcat,mons)
+
+    nMons = size(mons,2)
+    nTerms = length(encodedDegs)
+
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    reverseMons = Dict{UInt,Int}()
+    encodedMons = encode_degs(mons, bits)
+    for i in eachindex(encodedMons)
+        reverseMons[encodedMons[i]] = i
+    end
+
+    reverseDegs = Dict{UInt,Int}()
+    for i in eachindex(encodedDegs)
+        reverseDegs[encodedDegs[i]] = i
+    end
+    
+  
+    encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
+    encodedDegsModP = map(x -> mod_kron(x, p), encodedDegs)
+  
+    mons_perm = sortperm(encodedMonsModP)
+    degs_perm = sortperm(encodedDegsModP)
+  
+    left = true
+  
+    l = 1 # left index
+    r = nMons # right index
+  
+  
+    result = zeros(eltype(coefs),nMons,nMons)
+
+    relevant = kron(fill(p - 1, numVars))
+    while l ≤ nTerms && 1 ≤ r
+        monModP = encodedMonsModP[mons_perm[r]]
+        termModP = encodedDegsModP[degs_perm[l]]
+        if monModP + termModP == relevant
+            nMatches = 1
+            cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+
+            while l + nMatches ≤ nTerms && cmpTerm == termModP
+                nMatches += 1
+                if l + nMatches ≤ nTerms
+                    cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+                end
+            end
+    
+
+            cmpMon = encodedMonsModP[mons_perm[r]]
+            # loop through all monomials and process each one
+    
+            while 1 <= r && cmpMon == monModP
+            #mon = @view mons[mons_perm[r],:]
+            mon = encodedMons[mons_perm[r]]
+            for ll = l:(l + nMatches - 1)
+                term = encodedDegs[degs_perm[ll]]
+                newTerm = div_kron(mon + term - relevant, p)
+                newcoefind = reverseDegs[term] 
+                newcoef = coefs[newcoefind]
+                row = reverseMons[newTerm]
+                col = reverseMons[mon]
+                result[row,col] += newcoef
+            end
+    
+            r -= 1
+            left = true
+            
+            #if 1 ≤ r
+            #    cmpMon = encodedMonsModP[mons_perm[r]]
+            #end
+            # somehow this is erroring for me - Alex
+            # NOTE: it should work if you put the assignment in parens - JJ
+            (1 ≤ r) && (cmpMon = encodedMonsModP[mons_perm[r]])
+        end
+    
+        l += nMatches - 1
+        else
+            if left
+                l += 1
+                left = false
+            else
+                r -= 1
+                left = true
+            end
+        end
+    end
+
+    result
+end
+
+function matrix_of_multiply_then_split_sortmodp_kronecker_correct(poly::FqMPolyRingElem)
     p = poly.parent.data.n
     n = poly.parent.data.nvars
 
     d = Int(n * (p - 1))
 
     coeffs, degs = convert_to_gpu_representation(poly)
-    return matrix_of_multiply_then_split_sortmodp_kronecker(p, coeffs, degs, d)
+    return matrix_of_multiply_then_split_sortmodp_kronecker_correct(p, coeffs, degs, d)
 end
 
-function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
+function matrix_of_multiply_then_split_sortmodp_kronecker_correct(p,coefs,degs,d)
     numVars = size(degs,1)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)

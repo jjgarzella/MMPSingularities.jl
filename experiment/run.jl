@@ -46,7 +46,7 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
             end
 
             if samples % 1000 == 0
-                heights[Threads.threadid(), :] .+= localheights
+                heights .+= localheights
                 fill!(localheights, 0)
             end
         end
@@ -58,11 +58,10 @@ function periodic_writer(heights, thread_dicts, p)
     x = 300
     while true
         sleep(x)
-        reducedHeights = reduce(+, heights; dims = 1)
         heightstablename = "K3C$(p)Heights"
         polystablename = "K3C$(p)Polys"
         
-        save_to_database(client, reducedHeights, heightstablename, thread_dicts, polystablename)
+        save_to_database(client, heights, heightstablename, thread_dicts, polystablename)
 
         fill!(heights, 0)
         empty!(thread_dicts)
@@ -72,7 +71,7 @@ end
 function run(n, p)
     println("Threads.nthreads(): $(Threads.nthreads())")
     experimentThreads = Threads.nthreads() - 1
-    heights = zeros(Int, Threads.nthreads(), 11)
+    heights = zeros(Int, 11)
     
     thread_dicts = Vector{Dict{String, Any}}()
     
