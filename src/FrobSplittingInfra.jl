@@ -1,29 +1,3 @@
-#module FrobSplittingInfra
-#
-#using Oscar
-using Memoize
-#using Combinatorics
-#
-#
-#include("griffiths-dwork-construction/Utils.jl")
-#
-#export polynomial_frobenius_splitting
-#export polynomial_frobenius_generator
-#export multiply_then_split
-#export is_kernel_poly_frob_generator
-#export multicomibnations
-#export Δ₁, Δ₁l, Fstar_basis
-#export dim_of_homog_polys
-#export vector, matrix_of_lin_op
-#export lift_to_Int64
-#export index_of_term_not_in_frobenius_power_CY
-#export inPowerOfVariableIdeal
-#export isHomog, isFSplit
-#export matrix_of_multiply_then_split
-#export matrix_of_multiply_then_split_sortmodp
-
-
-
 exponent_vectors(poly) = leading_exponent_vector.(terms(poly))
 
 """

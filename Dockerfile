@@ -2,7 +2,7 @@ ARG IMAGE=nvidia/cuda:12.1.1-devel-ubuntu20.04
 FROM $IMAGE
 
 ARG JULIA_RELEASE=1.11
-ARG JULIA_VERSION=1.11.0-rc3
+ARG JULIA_VERSION=1.11.1
 
 # vim
 RUN apt-get update && apt-get install -y vim

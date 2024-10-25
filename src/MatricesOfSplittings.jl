@@ -1,5 +1,3 @@
-lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
-
 function gen_exp_vec(n, d, order=:lex)
     result = Vector{Vector{Int64}}(undef, binomial(n+d-1,d))
     for i in 1:binomial(n+d-1,d)
@@ -170,14 +168,22 @@ function compute_monomials(n,d,PR,order=:lex)
     gen_mon(gen_exp_vec(n,d,order),base_ring(PR),PR)
 end
 
+
+"""
+Wrapper for polynomial_to_vector
+
+Converts the homogeneous polynomial poly
+to a vector.
+
+"""
 function vector(f,d,order=:lex)
-    R = parent(f)
-    n = length(gens(R))
-  
-    F = coefficient_ring(R)
-    f == zero(R) && return zeros(F,dim_of_homog_polys(n,d))
-    @assert d == total_degree(f) "Expect d to be the degree of f"
-    polynomial_to_vector(f, n, F, R,order)
+  R = parent(f)
+  n = length(gens(R))
+
+  F = coefficient_ring(R)
+  f == zero(R) && return zeros(F,dim_of_homog_polys(n,d))
+  @assert d == total_degree(f) "Expect d to be the degree of f"
+  polynomial_to_vector(f, n, F, R,order)
 end
 
 function polynomial_to_vector(f, n, R, PR, order=:lex)
@@ -196,21 +202,195 @@ function polynomial_to_vector(f, n, R, PR, order=:lex)
 
     res
 end
+function convert_to_gpu_representation(p)
+    coeffs = coefficients(p)
 
-"""
-    kronecker_opt(vec, n, kroneckerPregen::Vector{Int})
+    # julia by default doesn't realize that "ZZ" is not
+    # an array, so insert it as a one-element tuple "(ZZ,)"
+    # so that julia will know not to broadcast along it.
+    coeffs_as_int64arr = UInt.(lift.((ZZ,),coeffs))
 
-Version of kronecker() that utilizes pregeneration, see example in body of
-matrix_of_multiply_then_split_sortmodp_kronecker2() to see how it works
-"""
-function kronecker_opt(vec, n, kroneckerPregen::Vector{Int})#,returntype=Int64)
-    s = 0#zero(returntype)
-    #println("$n")
-    for i in eachindex(kroneckerPregen)
-        s = s + vec[i] * kroneckerPregen[i]
-    end
-    s
+    exp_vecs = leading_exponent_vector.(terms(p))
+
+    # shamelessly taken from 
+    # https://discourse.julialang.org/t/how-to-convert-vector-of-vectors-to-matrix/72609/2 
+    exponent_mat = reduce(hcat,exp_vecs)
+
+    (coeffs_as_int64arr,exponent_mat)
 end
+
+"""
+Takes a linear operator L on the space
+of homogenous polynomials 
+of degree d and computes 
+the matrix representing it.
+
+Currently uses lexographical order
+
+L is a function, which is assumed to be a linear
+endomoprhism on the vector space of homogeneous
+polynomials.
+
+d is the degree of the homogeneous polynomials.
+
+R is the base ring.
+
+"""
+function matrix_of_lin_op(L,d,R,order=:lex)
+
+  n = length(gens(R))
+  monomials = compute_monomials(n,d,R,order)
+
+  m = length(monomials) # will be an mxm matrix
+
+  i = 0
+
+  matrix = zeros(coefficient_ring(R),m,0)
+  for monomial in monomials
+    evaled = L(monomial)
+    v = vector(evaled,d)
+    matrix = [matrix v]
+
+    if leading_exponent_vector(monomial) == [14,1,1,0]
+      println(v)
+    end
+
+    i = i + 1
+    if i % 50 == 0 
+      println("50 rows completed")
+    end
+  end
+
+  matrix
+end
+
+"""
+Multiplies the two polynomials f and g together
+and then applies `polynomial_frobenius_splitting`
+to the result.
+
+This algorithm only stores the relevant terms,
+forgetting all intermediate ones. 
+It *should* use less memory than the usual one.
+
+"""
+function multiply_then_split(p,f,g,indices)
+
+  result = zero(f)
+
+  vars = gens(parent(f))
+
+
+  for i in 1:length(f)
+    t = term(f,i)
+    for j in 1:length(g)
+      u = term(g,j)
+
+      prodterm = t*u
+
+      exps = exponent_vector(prodterm,1)
+
+      if all((exps .% p) .== indices)
+
+        coef = coeff(prodterm,1)
+
+        new_exp_vec = divexact.(exps .- indices,p) # the difision should be exact by the if statement
+
+        newterm = coef * prod(vars .^ new_exp_vec) 
+
+        result = result + newterm
+      end
+
+    end
+
+  end
+
+  result
+end#function
+
+function multiply_then_split(p,f,g)
+    nVars = length(gens(parent(f)))
+
+    multiply_then_split(p,f,g,fill(p-1, nVars))
+end#function
+
+function matrix_of_multiply_then_split_correct(poly::FqMPolyRingElem)
+    p = Int(poly.parent.data.n)
+    n = poly.parent.data.nvars
+    θFstar(a) = polynomial_frobenius_generator(p,poly*a)
+    m = n * (p - 1)
+
+    M = matrix_of_lin_op(θFstar,m,parent(poly))
+    return lift_to_Int64(M)
+end
+
+function matrix_of_multiply_then_split(poly::FqMPolyRingElem)
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    d = n * (p - 1)
+
+    coeffs, degs = convert_to_gpu_representation(poly)
+    return matrix_of_multiply_then_split(p, coeffs, degs, Int(d))
+end
+
+"""
+Computes the matrix of the 
+linear operator of multiplying
+by the polynomnial f with coefficients
+coefs and degrees degs and then applying 
+polynomial_frobenius_generator
+on the vector space of homogeneous polynomials
+of degree d
+
+This actually does a double for loop, thus 
+it'll have slower time complexity than the
+merge-based algorithms below which take
+advantage of the order.
+
+coefs - vector of coefficients
+degs - 2d array of exponent vectors
+"""
+function matrix_of_multiply_then_split(p,coefs,degs,d)
+    n = size(degs,1)
+    mons = gen_exp_vec(n,d)
+    reverseDict = Dict(mons[i] => i for i in eachindex(mons))
+    mons = reduce(hcat, mons)
+    nMons = size(mons, 2)
+    result = zeros(eltype(coefs), nMons,nMons)
+  
+    for i in 1:nMons
+      # compute column i
+      for tInd in 1:size(degs,2)
+  
+        relevant = true
+        for k in 1:n
+          #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+          if (degs[k, tInd] + mons[k, i]) % p != p-1
+            relevant = false
+          end
+        end
+  
+        if relevant
+        #if all((degs[tInd,:] .+ mons[i]) .% p .== fill(n,p-1))
+          # this is a relevant term
+          exv_in_prod = degs[:, tInd] .+ mons[:, i]
+          new_exv = divexact.(exv_in_prod .- fill(p - 1, n),p)
+          row = reverseDict[new_exv]
+          result[row,i] += coefs[tInd]
+  
+        end
+      end
+    end
+  
+    result
+end
+
+"""
+Lifts a matrix with entries in GF(p) to ZZ and converts the entries
+to Julia integers
+"""
+lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
 
 """
     mod_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
@@ -238,11 +418,35 @@ function div_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
     return result
 end
 
+"""
+    kronecker_opt(vec, n, kroneckerPregen::Vector{Int})
 
-function matrix_of_multiply_then_split_sortmodp_kronecker2(p,coefs,degs,d)
+Version of kronecker() that utilizes pregeneration, see example in body of
+matrix_of_multiply_then_split_sortmodp_kronecker2() to see how it works
+"""
+function kronecker_opt(vec, n, kroneckerPregen::Vector{Int})#,returntype=Int64)
+    s = 0#zero(returntype)
+    #println("$n")
+    for i in eachindex(kroneckerPregen)
+        s = s + vec[i] * kroneckerPregen[i]
+    end
+    s
+end
+
+function matrix_of_multiply_then_split_sortmodp_kronecker(poly::FqMPolyRingElem)
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    d = Int(n * (p - 1))
+
+    coeffs, degs = convert_to_gpu_representation(poly)
+    return matrix_of_multiply_then_split_sortmodp_kronecker(p, coeffs, degs, d)
+end
+
+function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
     numVars = size(degs,1)
     mons = gen_exp_vec(numVars,d)
-    mons = reduce(hcat, mons)
+    mons = reduce(hcat,mons)
 
     nMons = size(mons,2)
     nTerms = size(degs,2)
@@ -290,8 +494,6 @@ function matrix_of_multiply_then_split_sortmodp_kronecker2(p,coefs,degs,d)
     mons_perm = sortperm(encodedMonsModP)
     degs_perm = sortperm(encodedDegsModP)
   
-    # we need to traverse both arrays at once
-    # we consider degs to be on the "left"
     left = true
   
     l = 1 # left index

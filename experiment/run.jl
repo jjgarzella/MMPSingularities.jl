@@ -23,9 +23,9 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
     (x1, x2, x3, x4) = vars
     restricted_mons = [x1^3*x2, x1^3*x3, x1^3*x4, x1^2*x2^2, x1^2*x2*x3, x1^2*x2*x4, x1^2*x3^2, x1^2*x3*x4, x1^2*x4^2, x1*x2^3, x1*x2^2*x3, x1*x2^2*x4, x1*x2*x3^2, x1*x2*x3*x4, x1*x2*x4^2, x1*x3^3, x1*x3^2*x4, x1*x3*x4^2, x1*x4^3, x2^3*x3, x2^3*x4, x2^2*x3^2, x2^2*x3*x4, x2^2*x4^2, x2*x3^3, x2*x3^2*x4, x2*x3*x4^2, x2*x4^3, x3^3*x4, x3^2*x4^2, x3*x4^3, x4^4]
     
-    randompoly() = p >= 7 ? MMPSingularities.random_homog_poly_mod_restricted(p, vars, restricted_mons) : MMPSingularities.random_homog_poly_mod(p, vars, n)
+    randompoly() = p == 7 ? MMPSingularities.random_homog_poly_mod_restricted(p, vars, restricted_mons) : MMPSingularities.random_homog_poly_mod(p, vars, n)
     
-    pregen = MMPSingularities.GPUDelta1.pregen_delta1(n, p)
+    pregen = p == 7 ? MMPSingularities.pregen_delta1(n, p, true) : MMPSingularities.pregen_delta1(n, p)
 
     Threads.@threads for i in 1:experimentThreads
         println("Thread $(Threads.threadid()) started...")
@@ -34,19 +34,15 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
         while true
             f = randompoly()
             samples += 1
-            isfsplit, fpminus1 = MMPSingularities.isFSplit2(p, f)
-            if isfsplit
-                localheights[1] += 1
+            height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p, f, 10, pregen)
+            
+            if height == 11 || height == 12
+                localheights[11] += 1
             else
-                height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu_second_step(p, fpminus1, 10, pregen)
-                if height == 11 || height == 12
-                    localheights[11] += 1
-                else
-                    localheights[height] += 1
-                end
-                if height >= 7 && height <= 10
-                    push!(thread_dicts, Dict("height" => height, "polynomial" => string(f)))
-                end
+                localheights[height] += 1
+            end
+            if height >= 7 && height <= 10
+                push!(thread_dicts, Dict("height" => height, "polynomial" => string(f)))
             end
 
             if samples % 1000 == 0
