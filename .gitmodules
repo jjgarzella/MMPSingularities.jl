@@ -1,9 +1,0 @@
-[submodule "DeRham.jl"]
-	path = DeRham.jl
-	url = https://github.com/UCSD-computational-number-theory/DeRham.jl.git
-[submodule "GPUFiniteFieldMatrices.jl"]
-	path = GPUFiniteFieldMatrices.jl
-	url = https://github.com/UCSD-computational-number-theory/GPUFiniteFieldMatrices.jl.git
-[submodule "GPUPolynomials.jl"]
-	path = GPUPolynomials.jl
-	url = https://github.com/alexp616/GPUPolynomials.jl

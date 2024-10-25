@@ -186,7 +186,7 @@ function memorysafe_delta1(intermediate::HomogeneousPolynomial, prime::Int; preg
     end
     @assert (pregen.numVars, pregen.prime) == (numVars, prime)
 
-    vect = kronecker_substitution(intermediate, pregen.key, pregen.encodedLen, eltype(pregen.gpupregen.primeArray))
+    vect = Array(kronecker_substitution(intermediate, pregen.key, pregen.encodedLen, eltype(pregen.gpupregen.primeArray)))
 
     multimoddenseresult = memorysafe_gpu_ntt_pow(vect, prime; pregen = pregen.gpupregen, docrt = false)
 

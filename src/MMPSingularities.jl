@@ -1,6 +1,6 @@
 module MMPSingularities
-include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
-using .GPUPolynomials
+
+using GPUPolynomials
 using Oscar
 using Memoize
 using Combinatorics
