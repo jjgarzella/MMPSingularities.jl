@@ -198,6 +198,8 @@ function memorysafe_delta1(intermediate::HomogeneousPolynomial, prime::Int; preg
 
     resultCoefs = build_result(multimodresultCoefs, pregen.gpupregen.crtpregen, pregen.gpupregen.resultType)
 
+    temp = Array(resultCoefs)
+    @assert all(x -> x % prime == 0, temp)
     resultCoefs .÷= eltype(resultCoefs)(prime)
     resultCoefs .%= eltype(resultCoefs)(prime)
     resultCoefs = UInt64.(resultCoefs)

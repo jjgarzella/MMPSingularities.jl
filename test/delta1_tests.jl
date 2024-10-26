@@ -22,11 +22,11 @@ function oscar_delta1(poly, p)
 end
 
 function run_tests()
-    test_K3_5()
-    test_K3_7()
-    time_K3_5()
-    time_K3_7()
-    # test_memory_safe()
+    # test_K3_5()
+    # test_K3_7()
+    # time_K3_5()
+    # time_K3_7()
+    test_memory_safe()
 end
 
 function test_K3_5()
@@ -122,15 +122,15 @@ function test_memory_safe()
     p = 7
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
-
     fpminus1 = f ^ (p - 1)
 
     pregen = MMPSingularities.pregen_delta1(n, p)
 
     fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
 
-    safed1 = MMPSingularities.memorysafe_delta1(fpminus1_gpu, p; pregen = pregen)
     unsafed1 = MMPSingularities.memoryunsafe_delta1(fpminus1_gpu, p; pregen = pregen)
+    pregen.gpupregen.nttpregen.butterfly = Array(MMPSingularities.generate_butterfly_permutations(length(pregen.gpupregen.nttpregen.butterfly)))
+    safed1 = MMPSingularities.memorysafe_delta1(fpminus1_gpu, p; pregen = pregen)
 
     # @test safed1 == unsafed1
     if safed1.poly != unsafed1.poly
