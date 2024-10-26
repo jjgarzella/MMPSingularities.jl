@@ -1,11 +1,12 @@
 module MMPSingularities
 
-include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
-using .GPUPolynomials
 using Oscar
 using CUDA
 using Memoize
 using Serialization
+
+include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
+using .GPUPolynomials
 
 include("RandomPolynomials.jl")
 include("delta1/delta1.jl")
