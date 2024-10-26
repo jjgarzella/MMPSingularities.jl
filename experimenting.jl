@@ -36,6 +36,32 @@ function p11delta1()
 
     fpminus1_homog = MMPSingularities.HomogeneousPolynomial(fpminus1)
     CUDA.@time Δ₁fpminus1 = MMPSingularities.memorysafe_delta1(fpminus1_homog, p; pregen = pregen).poly
+    println("length: $(length(Δ₁fpminus1))")
+
+    return nothing
+end
+
+function p13delta1()
+    n = 4
+    p = 13
+    R, vars = polynomial_ring(GF(p), n)
+
+    f = random_homog_poly_mod(p, vars, n)
+    println("f: $f")
+    fpminus1 = f ^ (p - 1)
+    
+    pregen = MMPSingularities.pregen_delta1(n, p)
+
+    fpminus1_homog = MMPSingularities.HomogeneousPolynomial(fpminus1)
+    CUDA.@time Δ₁fpminus1 = MMPSingularities.memorysafe_delta1(fpminus1_homog, p; pregen = pregen).poly
+    println("length: $(length(Δ₁fpminus1))")
+
+    return nothing
+end
+
+function p11andp13()
+    p11delta1()
+    p13delta1()
 end
 
 function get_matrix(n, p)

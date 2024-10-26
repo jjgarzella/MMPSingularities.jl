@@ -196,16 +196,14 @@ function memorysafe_delta1(intermediate::HomogeneousPolynomial, prime::Int; preg
 
     multimodresultCoefs, encodedDegs = sparsify(multimoddenseresult)
 
-    resultCoefs = build_result(multimodresultCoefs, pregen.gpupregen.crtpregen, pregen.gpupregen.resultType)
+    resultCoefs = build_result(multimodresultCoefs, pregen.gpupregen.crtpregen, pregen.gpupregen.resultType, true)
 
-    temp = Array(resultCoefs)
-    @assert all(x -> x % prime == 0, temp)
+    @assert all(x -> x % prime == 0, resultCoefs)
     resultCoefs .÷= eltype(resultCoefs)(prime)
     resultCoefs .%= eltype(resultCoefs)(prime)
     resultCoefs = UInt64.(resultCoefs)
 
     resultDegs = decode_kronecker_substitution(encodedDegs, pregen.key, nvars(intermediate), intermediate.homogDegree * prime)
-    resultCoefs = Array(resultCoefs)
 
     result = zero(intermediate.poly.parent)
     result.data = Oscar.fpMPolyRingElem(intermediate.poly.parent.data, resultCoefs, resultDegs)
