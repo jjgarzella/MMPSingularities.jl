@@ -392,47 +392,6 @@ to Julia integers
 """
 lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
 
-"""
-    mod_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
-
-If a vector encodes to `num` with key generated from kroneckerPregen this method will compute
-the vector .% m in the encoded space.
-"""
-function mod_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
-    return num - div_kronecker(num, m, numVars, kroneckerPregen) * m
-end
-
-"""
-    div_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
-
-If a vector encodes to `num` with key generated from kroneckerPregen this method will compute
-the vector .÷ m in the encoded space.
-"""
-function div_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
-    result = 0
-    for i in numVars:-1:1
-        q, num = divrem(num, kroneckerPregen[i])
-        result += (q ÷ m) * kroneckerPregen[i]
-    end
-    
-    return result
-end
-
-"""
-    kronecker_opt(vec, n, kroneckerPregen::Vector{Int})
-
-Version of kronecker() that utilizes pregeneration, see example in body of
-matrix_of_multiply_then_split_sortmodp_kronecker2() to see how it works
-"""
-function kronecker_opt(vec, n, kroneckerPregen::Vector{Int})#,returntype=Int64)
-    s = 0#zero(returntype)
-    #println("$n")
-    for i in eachindex(kroneckerPregen)
-        s = s + vec[i] * kroneckerPregen[i]
-    end
-    s
-end
-
 function encode_degs(degs, bits)
     result = zeros(UInt64, size(degs, 2))
     for i in eachindex(result)
@@ -501,28 +460,28 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p::UInt, coefs::Vector
     for i in eachindex(encodedMons)
         reverseMons[encodedMons[i]] = i
     end
+  
+    encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
+    mons_perm = sortperm(encodedMonsModP)
+  
+    left = true
+  
+    l = 1 # left index
+    r = nMons # right index
+  
+    
+    result = zeros(eltype(coefs),nMons,nMons)
+    
+    relevant = kron(fill(p - 1, numVars))
 
     reverseDegs = Dict{UInt,Int}()
     for i in eachindex(encodedDegs)
         reverseDegs[encodedDegs[i]] = i
     end
-    
-  
-    encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
     encodedDegsModP = map(x -> mod_kron(x, p), encodedDegs)
-  
-    mons_perm = sortperm(encodedMonsModP)
-    degs_perm = sortperm(encodedDegsModP)
-  
-    left = true
-  
-    l = 1 # left index
-    r = nMons # right index
-  
-  
-    result = zeros(eltype(coefs),nMons,nMons)
 
-    relevant = kron(fill(p - 1, numVars))
+    
+    degs_perm = sortperm(encodedDegsModP)
     while l ≤ nTerms && 1 ≤ r
         monModP = encodedMonsModP[mons_perm[r]]
         termModP = encodedDegsModP[degs_perm[l]]
@@ -580,129 +539,187 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(p::UInt, coefs::Vector
     result
 end
 
-function matrix_of_multiply_then_split_sortmodp_kronecker_correct(poly::FqMPolyRingElem)
+function find_next_pminus1(num::T, nvars::Int, bits::Int, p::T) where T<:Number
+    result = zero(T)
+    mask = (one(T) << bits) - one(T)
+    total = zero(T)
+    added = zero(T)
+    for i in 0:(nvars - 1)
+        element = (num >> (bits * i)) & mask
+        adjust = p - one(T) - (element % p)
+        total += adjust
+        added += adjust << (bits * i)
+        result += (element + adjust) << (bits * i)
+    end
+    return result, added, total
+end
+
+function wics(n, k)
+    x = fill(0, k)
+    x[1] = n
+    result = zeros(Int, k, binomial(n + k - 1, k - 1))
+    idx = 1
+    while true
+        view(result, :, idx) .= x
+        idx += 1
+        v = x[end]
+        if n == v
+            break
+        end
+        x[end] = 0
+        j = k - 1
+        while x[j] == 0
+            j -= 1
+        end
+        x[j] -= 1
+        x[j + 1] = 1 + v
+    end
+
+    return result
+end
+
+function matrix_of_multiply_then_split_alex(poly::FqMPolyRingElem)
     p = poly.parent.data.n
     n = poly.parent.data.nvars
 
     d = Int(n * (p - 1))
 
-    coeffs, degs = convert_to_gpu_representation(poly)
-    return matrix_of_multiply_then_split_sortmodp_kronecker_correct(p, coeffs, degs, d)
+    coeffs = get_coeffs(poly)
+    degs = get_exps(poly)
+
+    return matrix_of_multiply_then_split_alex(p, coeffs, degs, d, n, poly.data.bits)
 end
 
-function matrix_of_multiply_then_split_sortmodp_kronecker_correct(p,coefs,degs,d)
-    numVars = size(degs,1)
+function matrix_of_multiply_then_split_alex(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
     nMons = size(mons,2)
-    nTerms = size(degs,2)
 
-    # Everything needs to be encoded with the same key to make the is_relevant() check work
-    maxdeg = p * (d + 1)
+    result = zeros(eltype(coeffs), nMons, nMons)
 
-    # We want to avoid having to compute te same powers of the encoding key every time we call kronecker()
-    kroneckerPregen = zeros(Int, numVars)
-    for i in eachindex(kroneckerPregen)
-        kroneckerPregen[i] = (maxdeg + 1) ^ (i - 1)
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    reverseMons = Dict{UInt,Int}()
+    encodedMons = encode_degs(mons, bits)
+    for i in eachindex(encodedMons)
+        reverseMons[encodedMons[i]] = i
     end
 
-    kron(v) = kronecker_opt(v, numVars, kroneckerPregen)
-    div_kron(v, m) = div_kronecker(v, m, numVars, kroneckerPregen)
-    mod_kron(v, m) = mod_kronecker(v, m, numVars, kroneckerPregen)
-
-    reverseMons = Dict{Int,Int}()
-    encodedMons = zeros(Int, nMons)
-    tempmon = zeros(Int, numVars)
-    for i in axes(mons, 2)
-        for j in eachindex(tempmon)
-            tempmon[j] = mons[j, i]
-        end
-        key = kron(tempmon)
-        encodedMons[i] = key
-        reverseMons[key] = i
-    end
-
-    reverseDegs = Dict{Int,Int}()
-    encodedDegs = zeros(Int, nTerms)
-    tempdeg = zeros(Int, numVars)
-    for i in axes(degs, 2)
-        for j in eachindex(tempdeg)
-            tempdeg[j] = degs[j, i]
-        end
-        key = kron(tempdeg)
-        encodedDegs[i] = key
-        reverseDegs[key] = i
-    end
-  
-    encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
-    encodedDegsModP = map(x -> mod_kron(x, p), encodedDegs)
-  
-    mons_perm = sortperm(encodedMonsModP)
-    degs_perm = sortperm(encodedDegsModP)
-  
-    left = true
-  
-    l = 1 # left index
-    r = nMons # right index
-  
-  
-    result = zeros(eltype(coefs),nMons,nMons)
+    weakintegercompositions = [encode_degs(wics(i, numVars) .* p, bits) for i in 0:fld(d, p)]
 
     relevant = kron(fill(p - 1, numVars))
-    while l ≤ nTerms && 1 ≤ r
-        monModP = encodedMonsModP[mons_perm[r]]
-        termModP = encodedDegsModP[degs_perm[l]]
-        if monModP + termModP == relevant
-            nMatches = 1
-            cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
 
-            while l + nMatches ≤ nTerms && cmpTerm == termModP
-                nMatches += 1
-                if l + nMatches ≤ nTerms
-                    cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
-                end
-            end
-    
-
-            cmpMon = encodedMonsModP[mons_perm[r]]
-            # loop through all monomials and process each one
-    
-            while 1 <= r && cmpMon == monModP
-            #mon = @view mons[mons_perm[r],:]
-            mon = encodedMons[mons_perm[r]]
-            for ll = l:(l + nMatches - 1)
-                term = encodedDegs[degs_perm[ll]]
-                newTerm = div_kron(mon + term - relevant, p)
-                newcoefind = reverseDegs[term] 
-                newcoef = coefs[newcoefind]
-                row = reverseMons[newTerm]
-                col = reverseMons[mon]
-                result[row,col] += newcoef
-            end
-    
-            r -= 1
-            left = true
-            
-            #if 1 ≤ r
-            #    cmpMon = encodedMonsModP[mons_perm[r]]
-            #end
-            # somehow this is erroring for me - Alex
-            # NOTE: it should work if you put the assignment in parens - JJ
-            (1 ≤ r) && (cmpMon = encodedMonsModP[mons_perm[r]])
-        end
-    
-        l += nMatches - 1
-        else
-            if left
-                l += 1
-                left = false
-            else
-                r -= 1
-                left = true
-            end
+    for term in eachindex(encodedDegs)
+        initialDeg, initialMon, howmuchadded = find_next_pminus1(encodedDegs[term], numVars, bits, p)
+        weaks = divexact(d - howmuchadded, p)
+        thingstoadd = weakintegercompositions[weaks + 1]
+        for i in eachindex(thingstoadd)
+            mon = initialMon + thingstoadd[i]
+            new_exv = div_kron(initialDeg + thingstoadd[i] - relevant, p)
+            result[reverseMons[new_exv], reverseMons[mon]] = coeffs[term]
         end
     end
 
-    result
+    return result
+end
+
+function matrix_of_multiply_then_split_alex_gpu(poly::FqMPolyRingElem, pregen = nothing)
+    
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    if pregen === nothing
+        pregen = generate_MOMTS(n, p)
+    end
+
+    d = Int(n * (p - 1))
+
+    coeffs = CuArray(get_coeffs(poly))
+    degs = CuArray(get_exps(poly))
+
+    return matrix_of_multiply_then_split_alex_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
+end
+
+function matrix_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::MyMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
+    term = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if term <= length(encodedDegs)
+        initialDeg, initialMon, howmuchadded = find_next_pminus1(encodedDegs[term], numVars, bits, p)
+
+        weaks = div(d - howmuchadded, p)
+        numthingstoadd = lengths[weaks + 1]
+        wicsstartidx = startindices[weaks + 1]
+        for i in 0:numthingstoadd - 1
+            mon = initialMon + weakintegercompositions[wicsstartidx + i]
+            new_exv = div_kron(initialDeg + weakintegercompositions[wicsstartidx + i] - relevant, p)
+            result[reverseMons[new_exv], reverseMons[mon]] = coeffs[term]
+        end
+    end
+
+    return nothing
+end
+
+struct MOMTSPregen
+    nMons::Int
+    reverseMons::MyMap
+    weakintegercompositions::CuVector{UInt}
+    startindices::CuVector{Int}
+    lengths::CuVector{Int}
+end
+
+function pregen_MOMTS(n, p)
+    n = Int(n)
+    p = Int(p)
+    d = n * (p - 1)
+    mons = gen_exp_vec(n, d)
+    mons = reduce(hcat, mons)
+
+    if n == 4
+        bits = 16
+    elseif n == 5
+        bits = 12
+    else
+        throw("Pregeneration not implemented")
+    end
+
+    encodedMons = encode_degs(mons, bits)
+    reverseMons = make_dict(encodedMons)
+    encodedMons = CuArray(encodedMons)
+
+    weakintegercompositions = [encode_degs(wics(i, n) .* p, bits) for i in 0:fld(d, p)]
+    startindices = zeros(Int, length(weakintegercompositions))
+    curridx = 1
+
+    for i in eachindex(startindices)
+        startindices[i] = curridx
+        curridx += length(weakintegercompositions[i])
+    end
+    startindices = CuArray(startindices)
+    lengths = CuArray([length(weakintegercompositions[i]) for i in eachindex(weakintegercompositions)])
+    weakintegercompositions = reduce(vcat, weakintegercompositions)
+    weakintegercompositions = CuArray(weakintegercompositions)
+
+    return MOMTSPregen(length(encodedMons), reverseMons, weakintegercompositions, startindices, lengths)
+end
+
+function matrix_of_multiply_then_split_alex_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)
+    result = CUDA.zeros(eltype(coeffs), pregen.nMons, pregen.nMons)
+
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    relevant = kron(fill(p - 1, numVars))
+
+    kernel = @cuda launch = false matrix_kernel(p, coeffs, encodedDegs, numVars, pregen.weakintegercompositions, pregen.lengths, pregen.startindices, pregen.reverseMons, bits, d, div_kron, relevant, result)
+    config = launch_configuration(kernel.fun)
+    threads = min(length(encodedDegs), config.threads)
+    blocks = cld(length(encodedDegs), threads)
+
+    kernel(p, coeffs, encodedDegs, numVars, pregen.weakintegercompositions, pregen.lengths, pregen.startindices, pregen.reverseMons, bits, d, div_kron, relevant, result; threads = threads, blocks = blocks)
+
+    return result
 end

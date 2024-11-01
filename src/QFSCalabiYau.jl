@@ -118,6 +118,18 @@ function isFSplit2(prime, poly)
     return !inPowerOfVariableIdeal(prime, prime, fpminus1), fpminus1
 end
 
+struct QFSHeightPregen
+    delta1pregen::Delta1Pregen
+    momtspregen::MOMTSPregen
+end
+
+function pregen_qfsheight(n, p, restricted = false)
+    delta1pregen = pregen_delta1(n, p, restricted)
+    momtspregen = pregen_MOMTS(n, p)
+
+    return QFSHeightPregen(delta1pregen, momtspregen)
+end
+
 """
 Calculates the quasi-F-split height
 in the case that deg(poly) = nvars(parent(poly))
@@ -147,14 +159,13 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
     pregen = pregen_delta1(N,p)
   end
 
-  Δ₁fpminus1 = delta1(fpminus1_homog,p;pregen = pregen)
+  Δ₁fpminus1 = delta1(fpminus1_homog,p;pregen = pregen.delta1pregen)
 
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
 
-  M = matrix_of_multiply_then_split_sortmodp_kronecker(Δ₁fpminus1.poly)
-  println()
+  M = Array(matrix_of_multiply_then_split_alex_gpu(Δ₁fpminus1.poly, pregen.momtspregen))
   nMonomials = length(start_vector)
   zzs = zeros(parent(start_vector[1]),nMonomials)
 
