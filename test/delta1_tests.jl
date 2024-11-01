@@ -23,10 +23,10 @@ end
 
 function run_tests()
     # test_K3_5()
-    # test_K3_7()
+    test_K3_7()
     # time_K3_5()
     # time_K3_7()
-    test_memory_safe()
+    # test_memory_safe()
 end
 
 function test_K3_5()
@@ -77,10 +77,13 @@ function test_K3_7()
     n = 4
     p = 7
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    # f = random_homog_poly_mod(p, vars, n)
+    (x1, x2, x3, x4) = vars
+    mons = [x1^4, x1^3*x2, x1^3*x3, x1^3*x4, x1^2*x2^2, x1^2*x2*x3, x1^2*x2*x4, x1^2*x3^2, x1^2*x3*x4, x1^2*x4^2, x1*x2^3, x1*x2^2*x3, x1*x2^2*x4, x1*x2*x3^2, x1*x2*x3*x4, x1*x2*x4^2, x1*x3^3, x1*x3^2*x4, x1*x3*x4^2, x1*x4^3, x2^3*x3, x2^3*x4, x2^2*x3^2, x2^2*x3*x4, x2^2*x4^2, x2*x3^3, x2*x3^2*x4, x2*x3*x4^2, x2*x4^3, x3^3*x4, x3^2*x4^2, x3*x4^3]
+    f = random_homog_poly_mod_restricted(p, vars, mons)
     fpminus1 = f ^ (p - 1)
     
-    pregen = MMPSingularities.pregen_delta1(n, p)
+    pregen = MMPSingularities.pregen_delta1(n, p, true)
     fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
 
     gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
