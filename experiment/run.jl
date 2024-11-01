@@ -25,7 +25,7 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
     
     randompoly() = p == 7 ? MMPSingularities.random_homog_poly_mod_restricted(p, vars, restricted_mons) : MMPSingularities.random_homog_poly_mod(p, vars, n)
     
-    pregen = p == 7 ? MMPSingularities.pregen_delta1(n, p, true) : MMPSingularities.pregen_delta1(n, p)
+    pregen = p == 7 ? MMPSingularities.pregen_qfsheight(n, p, true) : MMPSingularities.pregen_qfsheight(n, p)
 
     Threads.@threads for i in 1:experimentThreads
         println("Thread $(Threads.threadid()) started...")
