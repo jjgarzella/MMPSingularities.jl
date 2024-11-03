@@ -613,8 +613,18 @@ function matrix_of_multiply_then_split_alex(p::UInt, coeffs::Vector{<:Unsigned},
     relevant = kron(fill(p - 1, numVars))
 
     for term in eachindex(encodedDegs)
+        # initialDeg is the next vector congruent to (p - 1, ... , p - 1)
+        # initialMon is the "foundation" for the relevant monomial; all relevant monomials are generated
+        # from adding WICS to initialMon
+        # howmuchadded is the sum of the elements of initialMon, useful for fast computation of how many
+        # weak integer compositions are needed to add to initialMon to make a relevant monomial.
+        # For example, for the case of numVars = 4, char = 5, and given a term in delta1() with the degree
+        # sequence [21, 19, 18, 22], initialDeg = [24, 19, 19, 24], initialMon = [3, 0, 1, 2], howmuchadded = 6
+        # since we only added 6, we can add 10 more (n * (p - 1) - howmuchadded) = (16 - 6) = 10. We get WICS(10/5, 4) .* 5
+        # to add to initialMon.
         initialDeg, initialMon, howmuchadded = find_next_pminus1(encodedDegs[term], numVars, bits, p)
         weaks = divexact(d - howmuchadded, p)
+        # thingtoadd is vector of weak integer compositions that when added to initialMon make a relevant monomial
         thingstoadd = weakintegercompositions[weaks + 1]
         for i in eachindex(thingstoadd)
             mon = initialMon + thingstoadd[i]
