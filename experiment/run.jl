@@ -41,7 +41,7 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
             else
                 localheights[height] += 1
             end
-            if height >= 7 && height <= 10
+            if height >= 7
                 push!(thread_dicts, Dict("height" => height, "polynomial" => string(f)))
             end
 
