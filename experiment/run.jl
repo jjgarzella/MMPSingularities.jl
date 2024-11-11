@@ -21,11 +21,14 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
     R, vars = polynomial_ring(GF(p), n)
     
     (x1, x2, x3, x4) = vars
-    restricted_mons = [x1^4, x1^3*x2, x1^3*x3, x1^3*x4, x1^2*x2^2, x1^2*x2*x3, x1^2*x2*x4, x1^2*x3^2, x1^2*x3*x4, x1^2*x4^2, x1*x2^3, x1*x2^2*x3, x1*x2^2*x4, x1*x2*x3^2, x1*x2*x3*x4, x1*x2*x4^2, x1*x3^3, x1*x3^2*x4, x1*x3*x4^2, x1*x4^3, x2^3*x3, x2^3*x4, x2^2*x3^2, x2^2*x3*x4, x2^2*x4^2, x2*x3^3, x2*x3^2*x4, x2*x3*x4^2, x2*x4^3, x3^3*x4, x3^2*x4^2, x3*x4^3]
+    # restricted_mons = [x1^4, x1^3*x2, x1^3*x3, x1^3*x4, x1^2*x2^2, x1^2*x2*x3, x1^2*x2*x4, x1^2*x3^2, x1^2*x3*x4, x1^2*x4^2, x1*x2^3, x1*x2^2*x3, x1*x2^2*x4, x1*x2*x3^2, x1*x2*x3*x4, x1*x2*x4^2, x1*x3^3, x1*x3^2*x4, x1*x3*x4^2, x1*x4^3, x2^3*x3, x2^3*x4, x2^2*x3^2, x2^2*x3*x4, x2^2*x4^2, x2*x3^3, x2*x3^2*x4, x2*x3*x4^2, x2*x4^3, x3^3*x4, x3^2*x4^2, x3*x4^3]
     
-    randompoly() = p == 7 ? MMPSingularities.random_homog_poly_mod_restricted(p, vars, restricted_mons) : MMPSingularities.random_homog_poly_mod(p, vars, n)
+    # randompoly() = p == 7 ? MMPSingularities.random_homog_poly_mod_restricted(p, vars, restricted_mons) : MMPSingularities.random_homog_poly_mod(p, vars, n)
     
-    pregen = p == 7 ? MMPSingularities.pregen_qfsheight(n, p, true) : MMPSingularities.pregen_qfsheight(n, p)
+    # pregen = p == 7 ? MMPSingularities.pregen_qfsheight(n, p, true) : MMPSingularities.pregen_qfsheight(n, p)
+
+    randompoly() = MMPSingularities.random_homog_poly_mod(p, vars, n)
+    pregen = MMPSingularities.pregen_qfsheight(n, p)
 
     Threads.@threads for i in 1:experimentThreads
         println("Thread $(Threads.threadid()) started...")
