@@ -165,7 +165,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
 
-  M = Array(matrix_of_multiply_then_split_alex_gpu(Δ₁fpminus1.poly, pregen.momtspregen))
+  M = Array(matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1.poly, pregen.momtspregen))
   nMonomials = length(start_vector)
   zzs = zeros(parent(start_vector[1]),nMonomials)
 

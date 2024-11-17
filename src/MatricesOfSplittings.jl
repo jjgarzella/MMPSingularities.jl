@@ -324,16 +324,6 @@ function matrix_of_multiply_then_split_correct(poly::FqMPolyRingElem)
     return lift_to_Int64(M)
 end
 
-function matrix_of_multiply_then_split(poly::FqMPolyRingElem)
-    p = poly.parent.data.n
-    n = poly.parent.data.nvars
-
-    d = n * (p - 1)
-
-    coeffs, degs = convert_to_gpu_representation(poly)
-    return matrix_of_multiply_then_split(p, coeffs, degs, Int(d))
-end
-
 """
 Computes the matrix of the 
 linear operator of multiplying
@@ -351,39 +341,111 @@ advantage of the order.
 coefs - vector of coefficients
 degs - 2d array of exponent vectors
 """
-function matrix_of_multiply_then_split(p,coefs,degs,d)
-    n = size(degs,1)
-    mons = gen_exp_vec(n,d)
-    reverseDict = Dict(mons[i] => i for i in eachindex(mons))
-    mons = reduce(hcat, mons)
-    nMons = size(mons, 2)
-    result = zeros(eltype(coefs), nMons,nMons)
-  
-    for i in 1:nMons
+function matrix_of_multiply_then_split(poly::FqMPolyRingElem)
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    d = Int(n * (p - 1))
+
+    coeffs = get_coeffs(poly)
+    degs = get_exps(poly)
+
+    return matrix_of_multiply_then_split(p, coeffs, degs, d, n, poly.data.bits)
+end
+
+
+function matrix_of_multiply_then_split(p,coeffs,degs,d,numVars,bits)
+    mons = gen_exp_vec(numVars,d)
+    mons = reduce(hcat,mons)
+
+    nMons = size(mons,2)
+
+    result = zeros(eltype(coeffs), nMons, nMons)
+
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    reverseMons = Dict{UInt,Int}()
+    encodedMons = encode_degs(mons, bits)
+    for i in eachindex(encodedMons)
+        reverseMons[encodedMons[i]] = i
+    end
+
+    relevant = kron(fill(p - 1, numVars))
+
+    for i in eachindex(encodedMons)
       # compute column i
-      for tInd in 1:size(degs,2)
-  
-        relevant = true
-        for k in 1:n
-          #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
-          if (degs[k, tInd] + mons[k, i]) % p != p-1
-            relevant = false
-          end
-        end
-  
-        if relevant
-        #if all((degs[tInd,:] .+ mons[i]) .% p .== fill(n,p-1))
-          # this is a relevant term
-          exv_in_prod = degs[:, tInd] .+ mons[:, i]
-          new_exv = divexact.(exv_in_prod .- fill(p - 1, n),p)
-          row = reverseDict[new_exv]
-          result[row,i] += coefs[tInd]
-  
+      mon = encodedMons[i]
+      for termIdx in eachindex(degs)
+        if mod_kron(degs[termIdx] + mon, p) == relevant
+            new_exv = div_kron(degs[termIdx] + mon - relevant, p)
+            result[reverseMons[new_exv], i] = coeffs[termIdx]
         end
       end
     end
   
-    result
+    return result
+end
+
+function matrix_of_multiply_then_split_gpu(poly::FqMPolyRingElem, pregen = nothing)
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    if pregen === nothing
+        pregen = pregen_MOMTS(n, p)
+    end
+
+    d = Int(n * (p - 1))
+
+    coeffs = CuArray(get_coeffs(poly))
+    degs = CuArray(get_exps(poly))
+
+    return matrix_of_multiply_then_split_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
+end
+
+function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result)
+    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+        
+    if idx <= length(coeffs)
+        term = encodedDegs[idx]
+        @inbounds for i in eachindex(encodedMons)
+            if mod_kron(term + encodedMons[i], p) == relevant
+                new_exv = div_kron(term + encodedMons[i] - relevant, p)
+
+                result[reverseMons[new_exv], i] = coeffs[idx]
+            end
+        end
+    end
+
+    return nothing 
+end
+
+function matrix_of_multiply_then_split_gpu(p,coeffs,degs,d,numVars,bits,pregen)
+    mons = gen_exp_vec(numVars,d)
+    mons = reduce(hcat,mons)
+
+    nMons = size(mons,2)
+
+    result = CUDA.zeros(eltype(coeffs), nMons, nMons)
+
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    reverseMons = pregen.reverseMons
+    encodedMons = CuArray(encode_degs(mons, bits))
+
+    relevant = kron(fill(p - 1, numVars))
+
+    kernel = @cuda launch = false matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, degs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result)
+    config = launch_configuration(kernel.fun)
+    threads = min(length(degs), config.threads)
+    blocks = cld(length(degs), threads)
+
+    kernel(p, coeffs, degs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result; threads = threads, blocks = blocks)
+  
+    return result
 end
 
 """
@@ -578,7 +640,7 @@ function wics(n, k)
     return result
 end
 
-function matrix_of_multiply_then_split_alex(poly::FqMPolyRingElem)
+function matrix_of_multiply_then_split_wics(poly::FqMPolyRingElem)
     p = poly.parent.data.n
     n = poly.parent.data.nvars
 
@@ -587,10 +649,10 @@ function matrix_of_multiply_then_split_alex(poly::FqMPolyRingElem)
     coeffs = get_coeffs(poly)
     degs = get_exps(poly)
 
-    return matrix_of_multiply_then_split_alex(p, coeffs, degs, d, n, poly.data.bits)
+    return matrix_of_multiply_then_split_wics(p, coeffs, degs, d, n, poly.data.bits)
 end
 
-function matrix_of_multiply_then_split_alex(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
+function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
@@ -636,7 +698,7 @@ function matrix_of_multiply_then_split_alex(p::UInt, coeffs::Vector{<:Unsigned},
     return result
 end
 
-function matrix_of_multiply_then_split_alex_gpu(poly::FqMPolyRingElem, pregen = nothing)
+function matrix_of_multiply_then_split_wics_gpu(poly::FqMPolyRingElem, pregen = nothing)
     
     p = poly.parent.data.n
     n = poly.parent.data.nvars
@@ -650,7 +712,7 @@ function matrix_of_multiply_then_split_alex_gpu(poly::FqMPolyRingElem, pregen = 
     coeffs = CuArray(get_coeffs(poly))
     degs = CuArray(get_exps(poly))
 
-    return matrix_of_multiply_then_split_alex_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
+    return matrix_of_multiply_then_split_wics_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
 end
 
 function matrix_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::MyMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
@@ -715,7 +777,7 @@ function pregen_MOMTS(n, p)
     return MOMTSPregen(length(encodedMons), reverseMons, weakintegercompositions, startindices, lengths)
 end
 
-function matrix_of_multiply_then_split_alex_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)
+function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)
     result = CUDA.zeros(eltype(coeffs), pregen.nMons, pregen.nMons)
 
     kron(vec) = base2kron(vec, bits)
