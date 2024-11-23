@@ -6,8 +6,8 @@ using CUDA
 using Oscar
 
 function run_tests()
-    test_height()
-    # test_K3_5()
+    # test_height()
+    test_K3_5()
     # test_matrix()
 end
 
