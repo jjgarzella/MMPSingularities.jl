@@ -13,11 +13,21 @@ function save_to_database(client, heights, heightstablename, all_dicts, polystab
     # println("Saving to database...")
     update_heights(client, heights, heightstablename)
     add_polys(client, all_dicts, polystablename)
+    
+    return nothing
+end
 
+function write_to_runlog(string)
+    open("runlog.txt", "a") do file
+	write(file, string)
+    end
     return nothing
 end
 
 function run_experiment(heights, thread_dicts, experimentThreads, n, p)
+    open("runlog.txt", "w") do file
+
+    end
     R, vars = polynomial_ring(GF(p), n)
     
     (x1, x2, x3, x4) = vars
@@ -65,7 +75,9 @@ function periodic_writer(heights, thread_dicts, p)
         polystablename = "K3C$(p)Polys"
         
         save_to_database(client, heights, heightstablename, thread_dicts, polystablename)
-
+	totalSamples = sum(heights)
+	SPS = totalSamples / x
+	write_to_runlog("Processed $SPS samples per second in past $x seconds, threads: $(Threads.nthreads()) \n")
         fill!(heights, 0)
         empty!(thread_dicts)
     end
