@@ -11,6 +11,11 @@ struct Delta1Pregen
     gpupregen::GPUPowPregen
 end
 
+function serialize_filename(n,p,restricted = false)
+    str = restricted ? "restricted_pregen/" : "unrestricted_pregen/"
+    "src/delta1/$str$(n)_$(p).jls"
+end
+
 function serialize_pregen(n, p, restricted = false)
     if !restricted
         pregen = pregen_delta1_unrestricted(n, p)

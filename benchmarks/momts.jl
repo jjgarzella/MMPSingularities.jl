@@ -6,7 +6,7 @@ using Oscar
 
 function test_matrix()
     n = 4
-    primes = [3, 5, 7, 11, 13]
+    primes = [3, 5, 7]#, 11, 13]
     
     for p in primes
         R, vars = polynomial_ring(GF(p), n)
