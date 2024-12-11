@@ -12,6 +12,7 @@ using DeRham
 
 include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")
+include("FPureThresholds.jl")
 
 #include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
 #include("../GPUPolynomials.jl/src/Delta1.jl")
