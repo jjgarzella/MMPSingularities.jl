@@ -272,19 +272,19 @@ function index_of_term_not_in_frobenius_power_CY(p,n,order=:lex)
 end
 
 """
-Returns true if the polynomial poly
+Returns true if the polynomial f 
 is in the "frobenius power" \\frak{m}^[p],
 where {m} is the ideal of variables of the ring.
 
 """
-function inPowerOfVariableIdeal(p,m,poly)
+function inPowerOfVariableIdeal(p,m,f)
   # don't need this because exponent_vectors will have 
   # no elements for the zero polynomial
-  poly == zero(poly) && return true
+  poly == zero(f) && return true
 
 
-  for i in 1:length(poly)
-    ev = exponent_vector(poly,i)
+  for i in 1:length(f)
+    ev = exponent_vector(f,i)
 
     if all(ev .< m)
       #println("Found term not in the Frob power of the maximal ideal: " * string(exponent_vector))
