@@ -22,10 +22,12 @@ function oscar_delta1(poly, p)
 end
 
 function run_tests()
-    test_K3_5()
-    test_K3_7()
-    time_K3_5()
-    time_K3_7()
+    # test_K3_5()
+    # test_K3_7()
+    # time_K3_5()
+    # time_K3_7()
+    time_K3_11()
+    time_K3_13()
     # test_memory_safe()
 end
 
@@ -111,6 +113,32 @@ function time_K3_7()
         fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
         CUDA.@time gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
     end
+end
+
+function time_K3_11()
+    n = 4
+    p = 11
+    pregen = MMPSingularities.pregen_delta1(n, p)
+
+    R, vars = polynomial_ring(GF(p), n)
+    f = random_homog_poly_mod(p, vars, n)
+    fpminus1 = f ^ (p - 1)
+    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
+    println("Quartic K3_11 times ")
+    CUDA.@time gpu_d1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+end
+
+function time_K3_11()
+    n = 4
+    p = 13
+    pregen = MMPSingularities.pregen_delta1(n, p)
+
+    R, vars = polynomial_ring(GF(p), n)
+    f = random_homog_poly_mod(p, vars, n)
+    fpminus1 = f ^ (p - 1)
+    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
+    println("Quartic K3_13 times ")
+    CUDA.@time gpu_d1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
 end
 
 function test_memory_safe()
