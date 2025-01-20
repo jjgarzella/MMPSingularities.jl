@@ -6,7 +6,6 @@ using CUDA
 using Oscar
 
 function oscar_delta1(poly, p)
-
     R = parent(poly)
   
     originallift = map_coefficients(x -> lift(ZZ,x),poly)
@@ -25,9 +24,9 @@ function run_tests()
     # test_K3_5()
     # test_K3_7()
     # time_K3_5()
-    # time_K3_7()
-    time_K3_11()
-    time_K3_13()
+    time_K3_7()
+    # time_K3_11()
+    # time_K3_13()
     # test_memory_safe()
 end
 
@@ -36,40 +35,45 @@ function test_K3_5()
     p = 5
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
+    # f = x^4 + y^4
 
     fpminus1 = f ^ (p - 1)
     oscar_result = oscar_delta1(fpminus1, p)
 
-    pregen = MMPSingularities.pregen_delta1(n, p)
+    plan = MMPSingularities.plan_Δ₁(n, p)
 
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
 
-    gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+    gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
 
-    gpu_result = MMPSingularities.convert(FqMPolyRingElem, gpud1)
+    gpu_result = fpMPolyRingElem(gpud1)
 
-    if gpu_result != oscar_result
-        println("$f failed for test_K3_5!")
-    end
-    @test gpu_result == oscar_result
+    @test string(gpu_result) == string(oscar_result)
+    # @test gpu_result == oscar_result
 end
 
 function time_K3_5()
     n = 4
     p = 5
-    pregen = MMPSingularities.pregen_delta1(n, p)
 
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
+
+    plan = MMPSingularities.plan_Δ₁(n, p)
+
     fpminus1 = f ^ (p - 1)
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
-    gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
+    gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     println("Quartic K3_5 times: ")
     for i in 1:10
         f = random_homog_poly_mod(p, vars, n)
         fpminus1 = f ^ (p - 1)
-        fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
-        CUDA.@time gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+        fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+        fpminus1_gpu.opPlan = plan
+        CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     end
 end
 
@@ -78,40 +82,44 @@ function test_K3_7()
     p = 7
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
+    # f = x^4 + y^4
 
     fpminus1 = f ^ (p - 1)
     oscar_result = oscar_delta1(fpminus1, p)
 
-    pregen = MMPSingularities.pregen_delta1(n, p)
+    plan = MMPSingularities.plan_Δ₁(n, p)
 
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
 
-    gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+    gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
 
-    gpu_result = MMPSingularities.convert(FqMPolyRingElem, gpud1)
+    gpu_result = fpMPolyRingElem(gpud1)
 
-    if gpu_result != oscar_result
-        println("$f failed for test_K3_7!")
-    end
-    @test gpu_result == oscar_result
+    @test string(gpu_result) == string(oscar_result)
 end
 
 function time_K3_7()
     n = 4
     p = 7
-    pregen = MMPSingularities.pregen_delta1(n, p)
 
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
+
+    plan = MMPSingularities.plan_Δ₁(n, p)
+
     fpminus1 = f ^ (p - 1)
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
-    gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
+    gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     println("Quartic K3_7 times: ")
     for i in 1:10
         f = random_homog_poly_mod(p, vars, n)
         fpminus1 = f ^ (p - 1)
-        fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
-        CUDA.@time gpud1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+        fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+        fpminus1_gpu.opPlan = plan
+        CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     end
 end
 

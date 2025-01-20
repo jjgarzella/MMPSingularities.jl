@@ -715,6 +715,18 @@ function matrix_of_multiply_then_split_wics_gpu(poly::FqMPolyRingElem, pregen = 
     return matrix_of_multiply_then_split_wics_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
 end
 
+function matrix_of_multiply_then_split(poly::CufpMPolyRingElem, plan = nothing)
+    p = poly.parent.n
+    n = poly.parent.nvars
+
+    if plan === nothing
+        plan = generate_MOMTS(n, p)
+    end
+
+    d = Int(n * (p - 1))
+    return matrix_of_multiply_then_split_wics_gpu(p, poly.coeffs, poly.exps, d, n, poly.bits, plan)
+end
+
 function matrix_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::MyMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
     term = threadIdx().x + (blockIdx().x - 1) * blockDim().x
 

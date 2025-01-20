@@ -22,7 +22,6 @@ i.e. the polynomial is pretty dense, coef is nonzero with probability p-1/p
 function random_homog_poly_mod(p,vars,deg)
   nVars = length(vars)
 
-  
   var_combos = collect(allmonomialcombos(vars,deg))
   nMons = length(var_combos)
 

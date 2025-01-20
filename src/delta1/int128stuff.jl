@@ -17,6 +17,8 @@ function Base.mod(x::UInt128, m::UInt128)
     return remainder
 end
 
+# Guess I don't understand enough about type piracy to know why
+# div needs to be renamed but mod doesn't
 function divi(x::UInt128, m::UInt128)
     if x == 0
         return UInt128(0)
@@ -94,3 +96,15 @@ Base.:%(x::Int128, m::Int128) = mod(x, m)
 # Base.:÷(x::Int128, m::Int128) = div(x, m)
 Base.:÷(x::UInt128, m::UInt128) = divi(x, m)
 Base.:÷(x::Int128, m::Int128) = divi(x, m)
+
+@inline function sub_mod(x::Signed, y::Signed, m::Signed)
+    return mod(x - y, m)
+end
+
+@inline function sub_mod(x::Unsigned, y::Unsigned, m::Unsigned)
+    if y > x
+        return m - mod(y - x, m)
+    else
+        return mod(x - y, m)
+    end
+end

@@ -9,12 +9,10 @@ FLINT_jll = "e134572f-a0d5-539d-bddf-3cad8db41a82"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Memoize = "c03570c3-d221-55d1-a50c-7939bbd78826"
+NTTs = "355ed90f-8f14-42c1-a87f-2eca0abd88af"
 Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-
-[extras]
-CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
 
 [compat]
 BitIntegers = "0.3.2"
@@ -25,3 +23,6 @@ JSON = "0.21.4"
 Memoize = "0.4.4"
 Oscar = "1.1.1"
 julia = "1.11"
+
+[extras]
+CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"

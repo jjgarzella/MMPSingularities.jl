@@ -119,15 +119,15 @@ function isFSplit2(prime, poly)
 end
 
 struct QFSHeightPregen
-    delta1pregen::Delta1Pregen
+    Δ₁plan::Δ₁Plan
     momtspregen::MOMTSPregen
 end
 
-function pregen_qfsheight(n, p, restricted = false)
-    delta1pregen = pregen_delta1(n, p, restricted)
+function pregen_qfsheight(n, p)
+    Δ₁plan = plan_Δ₁(n, p)
     momtspregen = pregen_MOMTS(n, p)
 
-    return QFSHeightPregen(delta1pregen, momtspregen)
+    return QFSHeightPregen(Δ₁plan, momtspregen)
 end
 
 """
@@ -144,7 +144,7 @@ and uses the all-in-one-step method for getting this matrix,
 rather than repeatedly evaluating..
 
 """
-function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
+function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen)
   N = length(gens(parent(poly)))
 
   !isHomog(poly,ofdegree=N) && return -1
@@ -152,20 +152,15 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen=nothing)
   isfsplit, fpminus1 = isFSplit2(p, poly)
   isfsplit && return 1
 
-  fpminus1_homog = HomogeneousPolynomial(fpminus1)
-
-  if pregen === nothing
-    println("creating pregen")
-    pregen = pregen_delta1(N,p)
-  end
-
-  Δ₁fpminus1 = delta1(fpminus1_homog,p;pregen = pregen.delta1pregen)
+  fpminus1_gpu = CufpMPolyRingElem(fpminus1.data, UInt64)
+  fpminus1_gpu.opPlan = pregen.Δ₁plan
+  Δ₁fpminus1 = Δ₁(fpminus1_gpu)
 
   m = N*(p-1)
   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
   start_vector = lift_to_Int64(vector(fpminus1,m))
 
-  M = Array(matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1.poly, pregen.momtspregen))
+  M = Array(matrix_of_multiply_then_split(Δ₁fpminus1, pregen.momtspregen))
   nMonomials = length(start_vector)
   zzs = zeros(parent(start_vector[1]),nMonomials)
 
