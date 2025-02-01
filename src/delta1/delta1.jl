@@ -22,16 +22,18 @@ function plan_Δ₁(numVars, prime)::Δ₁Plan
     if (numVars, prime) == (4, 2)
         primeArray = UInt32.([12289])
     elseif (numVars, prime) == (4, 3)
-        primeArray = UInt32.([114689])
+        # primeArray = UInt64.([114689])
+        primeArray = UInt.([0x3ffffff960000001])
     elseif (numVars, prime) == (4, 5)
-        primeArray = UInt32.([13631489, 23068673])
+        # primeArray = UInt32.([13631489, 23068673])
+        primeArray = UInt.([0x3ffffff960000001])
     elseif (numVars, prime) == (4, 7)
-        primeArray = UInt32.([167772161, 377487361, 469762049])
+        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001])
     elseif (numVars, prime) == (4, 11)
-        primeArray = UInt.([2033101286932481, 2033107326730241, 2033107863601153, 2033108266254337])
+        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
         memorySafe = true
     elseif (numVars, prime) == (4, 13)
-        primeArray = UInt.([4089429488566273, 4089440225984513, 4089445594693633, 4089451231838209, 4089452037144577])
+        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001, 0x3fffffee00000001])
         memorySafe = true
     else
         throw(ArgumentError("I haven't figured out bounds for this yet!"))
@@ -42,11 +44,12 @@ function plan_Δ₁(numVars, prime)::Δ₁Plan
     fftLen = Base._nextpow2(resultTotalDegree * key^(numVars - 2) + 1)
     
     nttPowPlans = GPUPolynomials.NTTPowPlan[]
+    # @assert all(isprime.(primeArray)) # yeah idk
     for p in primeArray
-        nttPowPlan = GPUPolynomials.NTTPowPlan(fftLen, prime, p)
+        nttPowPlan = GPUPolynomials.NTTPowPlan(fftLen, prime, p; memorysafe = memorySafe)
         push!(nttPowPlans, nttPowPlan)
     end
-    resultDataType = GPUPolynomials.get_uint_type(max(Base._nextpow2(Int(ceil(log2(prod(BigInt.(primeArray)))))), 32))
+    resultDataType = GPUPolynomials.get_uint_type(max(Base._nextpow2(Int(ceil(log2(prod(BigInt.(primeArray)))))), 64))
     crtPlan = GPUPolynomials.plan_crt(resultDataType.(primeArray))
 
     return Δ₁Plan(numVars, prime, key, fftLen, resultTotalDegree, primeArray, eltype(primeArray), nttPowPlans, crtPlan, memorySafe)
@@ -58,7 +61,7 @@ function Δ₁(g::CufpMPolyRingElem)
     end
 
     if g.opPlan.memorySafe
-        throw("")
+        memory_safe_Δ₁(g)
     else
         memory_unsafe_Δ₁(g)
     end
@@ -81,13 +84,71 @@ function memory_unsafe_Δ₁(g::CufpMPolyRingElem)
     multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(vecs)
 
     resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
-    resultCoeffs .÷= eltype(resultCoeffs)(g.opPlan.prime)
-    resultCoeffs .%= eltype(resultCoeffs)(g.opPlan.prime)
+    # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
+    divide_and_mod!(resultCoeffs, g.opPlan.prime)
     resultCoeffs = UInt32.(resultCoeffs)
 
     resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, g.opPlan.key, numVars, g.opPlan.totalDegree, g.bits, UInt)
 
     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
+end
+
+function memory_safe_Δ₁(g::CufpMPolyRingElem)
+    numVars = nvars(g)
+
+    vecs = GPUPolynomials.get_dense_representation(g, g.opPlan.fftLen, g.bits, g.opPlan.nttType, g.opPlan.key, length(g.opPlan.nttPowPlans))
+
+    currPtr = pointer(vecs)
+    for planNum in eachindex(g.opPlan.nttPowPlans)
+        vect = CUDA.unsafe_wrap(CuVector{g.opPlan.nttType}, currPtr, g.opPlan.fftLen)
+        GPUPolynomials.ntt_pow(vect, g.opPlan.nttPowPlans[planNum])
+        currPtr += sizeof(g.opPlan.nttType) * g.opPlan.fftLen
+    end
+    
+    remove_pth_power_terms(g, g.opPlan.key, vecs, g.opPlan.prime, g.opPlan.primeArray)
+
+    multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(Array(vecs))
+    multimodResultCoeffs = CuArray(multimodResultCoeffs)
+    encodedDegs = CuArray(encodedDegs)
+
+    resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
+    # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
+
+    p = eltype(resultCoeffs)(g.opPlan.prime)
+    cpu_resultCoeffs = Array(resultCoeffs)
+    @assert all(x -> x % p == 0, cpu_resultCoeffs)
+    cpu_resultCoeffs .÷= p
+    cpu_resultCoeffs .%= p
+    cpu_resultCoeffs = UInt32.(cpu_resultCoeffs)
+    resultCoeffs = CuArray(cpu_resultCoeffs)
+
+    resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, g.opPlan.key, numVars, g.opPlan.totalDegree, g.bits, UInt)
+
+    return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
+end
+
+function divide_and_mod!(coeffs::CuVector{T}, prime::Integer) where T<:Unsigned
+    p = T(prime)
+
+    kernel = @cuda launch=false divide_and_mod_kernel!(coeffs, p)
+    config = launch_configuration(kernel.fun)
+    threads = min(length(coeffs), config.threads)
+    blocks = cld(length(coeffs), threads)
+
+    CUDA.@sync kernel(coeffs, p; threads = threads, blocks = blocks)
+end
+
+function divide_and_mod_kernel!(coeffs::CuDeviceVector{T}, prime::T) where T<:Unsigned
+    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    
+    if idx <= length(coeffs)
+        @inbounds begin
+            coeffs[idx] = unchecked_div(coeffs[idx], prime)
+            coeffs[idx] = unchecked_mod(coeffs[idx], prime)
+        end
+    end
+
+    return nothing
 end
 
 function generate_remove_indices(intermediate::CufpMPolyRingElem, key::Int, pow::Int)

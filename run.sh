@@ -7,6 +7,6 @@ fi
 echo "Using Julia at: $julia_exec"
 
 $julia_exec --project -e 'using Pkg; Pkg.update()'
-$julia_exec --project --threads 9 --gcthreads=1 -e "include(\"experiment/run.jl\")" &
+$julia_exec --project --threads 2 --gcthreads=1 -e "include(\"experiment/run.jl\")" &
 
 wait

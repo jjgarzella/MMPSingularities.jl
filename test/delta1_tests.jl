@@ -21,13 +21,60 @@ function oscar_delta1(poly, p)
 end
 
 function run_tests()
+    # test_K3_2()
+    # test_K3_3()
     # test_K3_5()
     # test_K3_7()
     # time_K3_5()
-    time_K3_7()
+    # time_K3_7()
     # time_K3_11()
-    # time_K3_13()
-    # test_memory_safe()
+    time_K3_13()
+end
+
+function test_K3_2()
+    n = 4
+    p = 2
+    R, vars = polynomial_ring(GF(p), n)
+    # f = random_homog_poly_mod(p, vars, n)
+    (x, y, z, w) = vars
+    f = x^4 + y^4
+
+    fpminus1 = f ^ (p - 1)
+    oscar_result = oscar_delta1(fpminus1, p)
+
+    plan = MMPSingularities.plan_Δ₁(n, p)
+
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
+
+    gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+
+    gpu_result = fpMPolyRingElem(gpud1)
+
+    @test string(gpu_result) == string(oscar_result)
+end
+
+function test_K3_3()
+    n = 4
+    p = 3
+    R, vars = polynomial_ring(GF(p), n)
+    # f = random_homog_poly_mod(p, vars, n)
+    (x, y, z, w) = vars
+    f = x^4 + y^4
+
+    fpminus1 = f ^ (p - 1)
+    oscar_result = oscar_delta1(fpminus1, p)
+
+    plan = MMPSingularities.plan_Δ₁(n, p)
+
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
+
+    gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+
+    gpu_result = fpMPolyRingElem(gpud1)
+
+    @test string(gpu_result) == string(oscar_result)
 end
 
 function test_K3_5()
@@ -68,7 +115,7 @@ function time_K3_5()
     fpminus1_gpu.opPlan = plan
     gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     println("Quartic K3_5 times: ")
-    for i in 1:10
+    for i in 1:100
         f = random_homog_poly_mod(p, vars, n)
         fpminus1 = f ^ (p - 1)
         fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
@@ -107,14 +154,13 @@ function time_K3_7()
     f = random_homog_poly_mod(p, vars, n)
 
     plan = MMPSingularities.plan_Δ₁(n, p)
-
     fpminus1 = f ^ (p - 1)
 
     fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
     fpminus1_gpu.opPlan = plan
     gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     println("Quartic K3_7 times: ")
-    for i in 1:10
+    for i in 1:50
         f = random_homog_poly_mod(p, vars, n)
         fpminus1 = f ^ (p - 1)
         fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
@@ -126,49 +172,40 @@ end
 function time_K3_11()
     n = 4
     p = 11
-    pregen = MMPSingularities.pregen_delta1(n, p)
-
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
+    # f = x^4 + y^4
+
     fpminus1 = f ^ (p - 1)
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
-    println("Quartic K3_11 times ")
-    CUDA.@time gpu_d1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
+
+    plan = MMPSingularities.plan_Δ₁(n, p)
+
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
+
+    CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+
+    return
 end
 
-function time_K3_11()
+function time_K3_13()
     n = 4
     p = 13
-    pregen = MMPSingularities.pregen_delta1(n, p)
-
     R, vars = polynomial_ring(GF(p), n)
     f = random_homog_poly_mod(p, vars, n)
-    fpminus1 = f ^ (p - 1)
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
-    println("Quartic K3_13 times ")
-    CUDA.@time gpu_d1 = MMPSingularities.delta1(fpminus1_gpu, p; pregen = pregen)
-end
+    # f = x^4 + y^4
 
-function test_memory_safe()
-    n = 4
-    p = 7
-    R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
     fpminus1 = f ^ (p - 1)
 
-    pregen = MMPSingularities.pregen_delta1(n, p)
+    plan = MMPSingularities.plan_Δ₁(n, p)
 
-    fpminus1_gpu = MMPSingularities.HomogeneousPolynomial(fpminus1)
+    fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = plan
 
-    unsafed1 = MMPSingularities.memoryunsafe_delta1(fpminus1_gpu, p; pregen = pregen)
-    pregen.gpupregen.nttpregen.butterfly = Array(MMPSingularities.generate_butterfly_permutations(length(pregen.gpupregen.nttpregen.butterfly)))
-    safed1 = MMPSingularities.memorysafe_delta1(fpminus1_gpu, p; pregen = pregen)
+    CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
 
-    # @test safed1 == unsafed1
-    if safed1.poly != unsafed1.poly
-        println("$f failed for test_memory_safe!")
-    end
-    @test safed1.poly == unsafed1.poly
+    return
 end
+
 
 run_tests()

@@ -8,6 +8,7 @@ using Oscar
 function run_tests()
     # test_height()
     test_K3_5()
+    # time_K3_7()
     # test_matrix()
 end
 
@@ -72,6 +73,26 @@ function test_K3_5()
     @test qfs_height_fn(feight1) == 8
     @test qfs_height_fn(fnine1) == 9
     @test qfs_height_fn(ften1) == 10
+end
+
+function time_K3_7()
+    n = 4
+    p = 7
+
+    R, vars = polynomial_ring(GF(p), n)
+
+    (x1, x2, x3, x4) = vars
+
+    f5 = 5*x1^4 + 6*x1^3*x2 + 2*x1^3*x3 + 3*x1^3*x4 + 4*x1^2*x2^2 + 3*x1^2*x2*x4 + 2*x1^2*x3^2 + 3*x1^2*x3*x4 + 6*x1^2*x4^2 + 4*x1*x2^2*x3 + 6*x1*x2^2*x4 + 2*x1*x2*x3^2 + 3*x1*x2*x3*x4 + 5*x1*x2*x4^2 + 3*x1*x3^3 + x1*x3^2*x4 + 5*x1*x3*x4^2 + 6*x2^4 + 5*x2^3*x3 + 3*x2^2*x3^2 + 6*x2^2*x3*x4 + 3*x2*x3^3 + 3*x2*x3^2*x4 + 4*x2*x3*x4^2 + 3*x2*x4^3 + 5*x3^4 + 6*x3^2*x4^2 + 6*x3*x4^3 + 3*x4^4
+
+    pregen = MMPSingularities.pregen_qfsheight(n, p)
+    qfs_height_fn(x) = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p, x, 10, pregen)
+
+    @assert qfs_height_fn(f5) == 5
+
+    for i in 1:10
+        qfs_height_fn(f5)
+    end
 end
 
 function test_matrix()

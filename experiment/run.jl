@@ -25,9 +25,6 @@ function write_to_runlog(string)
 end
 
 function run_experiment(heights, thread_dicts, experimentThreads, n, p)
-    open("runlog.txt", "w") do file
-
-    end
     R, vars = polynomial_ring(GF(p), n)
     
     (x1, x2, x3, x4) = vars
@@ -43,24 +40,18 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
     Threads.@threads for i in 1:experimentThreads
         println("Thread $(Threads.threadid()) started...")
         samples = 0
-        localheights = zeros(Int, 11)
         while true
             f = randompoly()
             samples += 1
             height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p, f, 10, pregen)
             
             if height == 11 || height == 12
-                localheights[11] += 1
+                heights[11] += 1
             else
-                localheights[height] += 1
+                heights[height] += 1
             end
-            if height >= 7
+            if height >= 3
                 push!(thread_dicts, Dict("height" => height, "polynomial" => string(f)))
-            end
-
-            if samples % 1000 == 0
-                heights .+= localheights
-                fill!(localheights, 0)
             end
         end
     end
@@ -68,16 +59,16 @@ end
 
 function periodic_writer(heights, thread_dicts, p)
     # Write every x seconds
-    x = 300
+    x = 150
     while true
         sleep(x)
         heightstablename = "K3C$(p)Heights"
         polystablename = "K3C$(p)Polys"
         
         save_to_database(client, heights, heightstablename, thread_dicts, polystablename)
-	totalSamples = sum(heights)
-	SPS = totalSamples / x
-	write_to_runlog("Processed $SPS samples per second in past $x seconds, threads: $(Threads.nthreads()) \n")
+        totalSamples = sum(heights)
+        SPS = totalSamples / x
+        write_to_runlog("Processed $SPS samples per second in past $x seconds, threads: $(Threads.nthreads()) \n")
         fill!(heights, 0)
         empty!(thread_dicts)
     end
@@ -97,4 +88,4 @@ function run(n, p)
     run_experiment(heights, thread_dicts, experimentThreads, n, p)
 end
 
-run(4, 7)
+run(4, 11)

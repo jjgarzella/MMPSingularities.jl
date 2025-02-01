@@ -1,10 +1,109 @@
-import Base: mod, ÷, %
+"""
+    unchecked_mod(x::T, m::T) where T<:Integer
 
-function Base.mod(x::UInt128, m::UInt128)
-    if x == 0
-        return UInt128(0)
+Variation of mod that assumes m != 0.
+In reality only here because 128 bit mod tries
+to compile to a CUDA intrinsic `__modti3` which doesn't
+actually exist (to my knowledge).
+
+128 bit mod isn't used that often, so not very high up
+on priority list. Using really slow long division iterative
+algorithm right now.
+"""
+@inline function unchecked_mod(x::T, m::Integer) where T<:Integer
+    return mod(x, T(m))
+end
+
+@inline function unchecked_div(x::T, m::Integer) where T<:Integer
+    return div(x, T(m))
+end
+
+function sub_mod(x::Unsigned, y::Unsigned, m::Unsigned)
+    if y > x
+        return (m - y) + x
+    else
+        return x - y
+    end
+end
+
+function sub_mod(x::Signed, y::Signed, m::Signed)
+    return mod(x - y, m)
+end
+
+function add_mod(x::Unsigned, y::Unsigned, m::Unsigned)
+    result = x + y
+    return (result >= m || result < x) ? result - m : result
+end
+
+function add_mod(x::Signed, y::Signed, m::Signed)
+    result = x + y
+    return result >= m ? result - m : result
+end
+
+function mywiden(x)
+    throw(MethodError(mywiden, (typeof(x),)))
+end
+
+macro generate_widen()
+    int_types = [Int8, Int16, Int32, Int64, Int128, Int256, Int512]
+    uint_types = [UInt8, UInt16, UInt32, UInt64, UInt128, UInt256, UInt512]
+
+    widen_methods = quote end
+    for i in 1:length(int_types) - 1
+        push!(widen_methods.args, :(
+            Base.@eval mywiden(x::$(int_types[i])) = $(int_types[i+1])(x)
+        ))
+        push!(widen_methods.args, :(
+            Base.@eval mywiden(x::$(uint_types[i])) = $(uint_types[i+1])(x)
+        ))
     end
 
+    return widen_methods
+end
+
+@generate_widen()
+
+"""
+    mywidemul(x::T, y::T) where T<:Integer
+
+Exists because Base.widen() widens Int128 to BigInt, which 
+CUDA doesn't like.
+"""
+function mywidemul(x::T, y::T) where T<:Integer
+    return mywiden(x) * mywiden(y)
+end
+
+function mul_mod(x::T, y::T, m::T) where T<:Integer
+    return T(unchecked_mod(mywidemul(x, y), m))
+end
+
+function mul_mod(x::BigInt, y::BigInt, m::BigInt)
+    return (x * y) % m
+end
+
+function power_mod(n::T, p::Integer, m::T) where T<:Integer
+    result = eltype(n)(1)
+    base = unchecked_mod(n, m)
+
+    while p > 0
+        if p & 1 == 1
+            result = mul_mod(result, base, m)
+        end
+        base = mul_mod(base, base, m)
+        p = p >> 1
+    end
+
+    return result
+end
+
+# Need this file because "Int128 isn’t natively supported, and 
+# LLVM relies on intrinsics for many operations. We don’t currently 
+# have these intrinsics (implemented or linked in from another 
+# library), resulting in the error you encountered.
+# (https://discourse.julialang.org/t/division-for-int128-not-defined-on-gpu/62797)
+# And I don't understand enough about compilers yet to solve that.
+function unchecked_mod(x::UInt128, m::Integer)
+    m = UInt128(m)
     remainder = UInt128(0)
 
     for i in 0:127
@@ -17,38 +116,13 @@ function Base.mod(x::UInt128, m::UInt128)
     return remainder
 end
 
-# Guess I don't understand enough about type piracy to know why
-# div needs to be renamed but mod doesn't
-function divi(x::UInt128, m::UInt128)
-    if x == 0
-        return UInt128(0)
-    end
-
-    quotient = UInt128(0)
-    remainder = UInt128(0)
-
-    for i in 0:127
-        remainder = (remainder << 1) | ((x >> (127 - i)) & 1)
-        if remainder >= m
-            remainder -= m
-            quotient |= (UInt128(1) << (127 - i))
-        end
-    end
-
-    return quotient
-end
-
-function Base.mod(x::Int128, m::Int128)
-    if x == 0
-        return Int128(0)
-    end
-
+function unchecked_mod(x::Int128, m::Integer)
+    m = Int128(m)
     sign = 1
     if (x < 0) != (m < 0)
         sign = -1
     end
 
-    n = abs(x)
     m = abs(m)
 
     remainder = Int128(0)
@@ -63,11 +137,22 @@ function Base.mod(x::Int128, m::Int128)
     return result < 0 ? result + m : result
 end
 
-function divi(x::Int128, m::Int128)
-    if x == 0
-        return Int128(0)
+function unchecked_div(x::UInt128, m::UInt128)
+    quotient = UInt128(0)
+    remainder = UInt128(0)
+
+    for i in 0:127
+        remainder = (remainder << 1) | ((x >> (127 - i)) & 1)
+        if remainder >= m
+            remainder -= m
+            quotient |= (UInt128(1) << (127 - i))
+        end
     end
 
+    return quotient
+end
+
+function unchecked_div(x::Int128, m::Int128)
     sign = 1
     if (x < 0) != (m < 0)
         sign = -1
@@ -88,23 +173,4 @@ function divi(x::Int128, m::Int128)
     end
 
     return quotient * sign
-end
-
-Base.:%(x::UInt128, m::UInt128) = mod(x, m)
-# Base.:÷(x::UInt128, m::UInt128) = div(x, m)
-Base.:%(x::Int128, m::Int128) = mod(x, m)
-# Base.:÷(x::Int128, m::Int128) = div(x, m)
-Base.:÷(x::UInt128, m::UInt128) = divi(x, m)
-Base.:÷(x::Int128, m::Int128) = divi(x, m)
-
-@inline function sub_mod(x::Signed, y::Signed, m::Signed)
-    return mod(x - y, m)
-end
-
-@inline function sub_mod(x::Unsigned, y::Unsigned, m::Unsigned)
-    if y > x
-        return m - mod(y - x, m)
-    else
-        return mod(x - y, m)
-    end
 end

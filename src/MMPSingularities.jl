@@ -6,6 +6,7 @@ using Memoize
 using Serialization
 using Primes
 using StaticArrays
+using BitIntegers
 import Adapt
 
 include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
