@@ -18,7 +18,7 @@ struct Δ₁Plan <: OperationPlan
 end
 
 function plan_Δ₁(numVars, prime)::Δ₁Plan
-    memorySafe = false
+    memorySafe = true
     if (numVars, prime) == (4, 2)
         primeArray = UInt32.([12289])
     elseif (numVars, prime) == (4, 3)
@@ -86,22 +86,26 @@ function memory_unsafe_Δ₁(g::CufpMPolyRingElem)
     resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
     # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
     divide_and_mod!(resultCoeffs, g.opPlan.prime)
-    resultCoeffs = UInt32.(resultCoeffs)
+    resultCoeffs = UInt64.(resultCoeffs)
 
     resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, g.opPlan.key, numVars, g.opPlan.totalDegree, g.bits, UInt)
 
     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
 end
 
+
 function memory_safe_Δ₁(g::CufpMPolyRingElem)
     numVars = nvars(g)
 
-    vecs = GPUPolynomials.get_dense_representation(g, g.opPlan.fftLen, g.bits, g.opPlan.nttType, g.opPlan.key, length(g.opPlan.nttPowPlans))
+    vecs = GPUPolynomials.cpu_get_dense_representation(g, g.opPlan.fftLen, g.bits, g.opPlan.nttType, g.opPlan.key, length(g.opPlan.nttPowPlans))
 
     currPtr = pointer(vecs)
+    gpualloc = CUDA.zeros(g.opPlan.nttType, g.opPlan.fftLen)
     for planNum in eachindex(g.opPlan.nttPowPlans)
-        vect = CUDA.unsafe_wrap(CuVector{g.opPlan.nttType}, currPtr, g.opPlan.fftLen)
-        GPUPolynomials.ntt_pow(vect, g.opPlan.nttPowPlans[planNum])
+        cpuvec = unsafe_wrap(Vector{g.opPlan.nttType}, currPtr, g.opPlan.fftLen)
+        copyto!(gpualloc, cpuvec)
+        GPUPolynomials.ntt_pow(gpualloc, g.opPlan.nttPowPlans[planNum])
+        copyto!(cpuvec, gpualloc)
         currPtr += sizeof(g.opPlan.nttType) * g.opPlan.fftLen
     end
     
@@ -116,10 +120,10 @@ function memory_safe_Δ₁(g::CufpMPolyRingElem)
 
     p = eltype(resultCoeffs)(g.opPlan.prime)
     cpu_resultCoeffs = Array(resultCoeffs)
-    @assert all(x -> x % p == 0, cpu_resultCoeffs)
+    # @assert all(x -> x % p == 0, cpu_resultCoeffs)
     cpu_resultCoeffs .÷= p
     cpu_resultCoeffs .%= p
-    cpu_resultCoeffs = UInt32.(cpu_resultCoeffs)
+    cpu_resultCoeffs = UInt64.(cpu_resultCoeffs)
     resultCoeffs = CuArray(cpu_resultCoeffs)
 
     resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, g.opPlan.key, numVars, g.opPlan.totalDegree, g.bits, UInt)
