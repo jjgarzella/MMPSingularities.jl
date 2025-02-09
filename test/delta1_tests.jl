@@ -28,7 +28,7 @@ function run_tests()
     # time_K3_5()
     # time_K3_7()
     # time_K3_11()
-    time_K3_13()
+    # time_K3_13()
 end
 
 function test_K3_2()

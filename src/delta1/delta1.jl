@@ -18,7 +18,7 @@ struct Δ₁Plan <: OperationPlan
 end
 
 function plan_Δ₁(numVars, prime)::Δ₁Plan
-    memoryefficient = true
+    memoryefficient = false
     if (numVars, prime) == (4, 2)
         primeArray = UInt.([12289])
     elseif (numVars, prime) == (4, 3)

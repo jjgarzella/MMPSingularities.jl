@@ -44,5 +44,3 @@ COPY startup.jl /usr/local/share/julia/config/
 RUN mkdir -m 0777 /data
 
 ENV JULIA_HISTORY=/data/logs/repl_history.jl
-
-ENTRYPOINT ["/usr/local/bin/julia"]
