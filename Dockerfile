@@ -1,22 +1,18 @@
 ARG IMAGE=nvidia/cuda:12.1.1-devel-ubuntu20.04
 FROM $IMAGE
 
-ARG JULIA_RELEASE=1.11
-ARG JULIA_VERSION=1.11.1
-
-# vim
-RUN apt-get update && apt-get install -y vim
-
-# julia
-
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install --yes --no-install-recommends \
                     # basic stuff
-                    curl ca-certificates nano && \
+                    curl ca-certificates vim git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+
+# julia
+ARG JULIA_RELEASE=1.11
+ARG JULIA_VERSION=1.11.2
 RUN curl -s -L https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_RELEASE}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz | \
     tar -C /usr/local -x -z --strip-components=1 -f -
 
@@ -26,7 +22,7 @@ RUN curl -s -L https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_RELEASE}
 COPY Project.toml Manifest.toml LocalPreferences.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
 
 RUN JULIA_DEPOT_PATH=/usr/local/share/julia \
-    julia -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
+    julia -e 'using Pkg; Pkg.add(url="https://github.com/alexp616/CudaNTTs.jl"); Pkg.instantiate(); Pkg.API.precompile()'
 
 # generate the device runtime library for all known and supported devices
 # XXX: this doesn't precompile into the system depot anymore

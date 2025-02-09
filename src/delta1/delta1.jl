@@ -14,13 +14,13 @@ struct Δ₁Plan <: OperationPlan
     nttType::DataType
     nttPowPlans::Vector{GPUPolynomials.NTTPowPlan}
     crtPlan::CuMatrix
-    memorySafe::Bool
+    memoryefficient::Bool
 end
 
 function plan_Δ₁(numVars, prime)::Δ₁Plan
-    memorySafe = true
+    memoryefficient = true
     if (numVars, prime) == (4, 2)
-        primeArray = UInt32.([12289])
+        primeArray = UInt.([12289])
     elseif (numVars, prime) == (4, 3)
         # primeArray = UInt64.([114689])
         primeArray = UInt.([0x3ffffff960000001])
@@ -31,10 +31,10 @@ function plan_Δ₁(numVars, prime)::Δ₁Plan
         primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001])
     elseif (numVars, prime) == (4, 11)
         primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
-        memorySafe = true
+        memoryefficient = true
     elseif (numVars, prime) == (4, 13)
         primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001, 0x3fffffee00000001])
-        memorySafe = true
+        memoryefficient = true
     else
         throw(ArgumentError("I haven't figured out bounds for this yet!"))
     end
@@ -46,13 +46,13 @@ function plan_Δ₁(numVars, prime)::Δ₁Plan
     nttPowPlans = GPUPolynomials.NTTPowPlan[]
     # @assert all(isprime.(primeArray)) # yeah idk
     for p in primeArray
-        nttPowPlan = GPUPolynomials.NTTPowPlan(fftLen, prime, p; memorysafe = memorySafe)
+        nttPowPlan = GPUPolynomials.NTTPowPlan(fftLen, prime, p; memoryefficient = memoryefficient)
         push!(nttPowPlans, nttPowPlan)
     end
     resultDataType = GPUPolynomials.get_uint_type(max(Base._nextpow2(Int(ceil(log2(prod(BigInt.(primeArray)))))), 64))
     crtPlan = GPUPolynomials.plan_crt(resultDataType.(primeArray))
 
-    return Δ₁Plan(numVars, prime, key, fftLen, resultTotalDegree, primeArray, eltype(primeArray), nttPowPlans, crtPlan, memorySafe)
+    return Δ₁Plan(numVars, prime, key, fftLen, resultTotalDegree, primeArray, eltype(primeArray), nttPowPlans, crtPlan, memoryefficient)
 end
 
 function Δ₁(g::CufpMPolyRingElem)
@@ -60,14 +60,14 @@ function Δ₁(g::CufpMPolyRingElem)
         throw(ArgumentError("Input polynomial needs an OperationPlan!"))
     end
 
-    if g.opPlan.memorySafe
-        memory_safe_Δ₁(g)
+    if g.opPlan.memoryefficient
+        memoryefficient_Δ₁(g)
     else
-        memory_unsafe_Δ₁(g)
+        fast_Δ₁(g)
     end
 end
 
-function memory_unsafe_Δ₁(g::CufpMPolyRingElem)
+function fast_Δ₁(g::CufpMPolyRingElem)
     numVars = nvars(g)
 
     vecs = GPUPolynomials.get_dense_representation(g, g.opPlan.fftLen, g.bits, g.opPlan.nttType, g.opPlan.key, length(g.opPlan.nttPowPlans))
@@ -94,7 +94,7 @@ function memory_unsafe_Δ₁(g::CufpMPolyRingElem)
 end
 
 
-function memory_safe_Δ₁(g::CufpMPolyRingElem)
+function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     numVars = nvars(g)
 
     vecs = GPUPolynomials.cpu_get_dense_representation(g, g.opPlan.fftLen, g.bits, g.opPlan.nttType, g.opPlan.key, length(g.opPlan.nttPowPlans))
@@ -120,7 +120,7 @@ function memory_safe_Δ₁(g::CufpMPolyRingElem)
 
     p = eltype(resultCoeffs)(g.opPlan.prime)
     cpu_resultCoeffs = Array(resultCoeffs)
-    # @assert all(x -> x % p == 0, cpu_resultCoeffs)
+    @assert all(x -> x % p == 0, cpu_resultCoeffs)
     cpu_resultCoeffs .÷= p
     cpu_resultCoeffs .%= p
     cpu_resultCoeffs = UInt64.(cpu_resultCoeffs)
