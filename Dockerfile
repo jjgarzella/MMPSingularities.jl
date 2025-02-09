@@ -22,7 +22,7 @@ RUN curl -s -L https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_RELEASE}
 COPY Project.toml Manifest.toml LocalPreferences.toml /usr/local/share/julia/environments/v${JULIA_RELEASE}/
 
 RUN JULIA_DEPOT_PATH=/usr/local/share/julia \
-    julia -e 'using Pkg; Pkg.add(url="https://github.com/alexp616/CudaNTTs.jl"); Pkg.instantiate(); Pkg.API.precompile()'
+    julia -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
 
 # generate the device runtime library for all known and supported devices
 # XXX: this doesn't precompile into the system depot anymore

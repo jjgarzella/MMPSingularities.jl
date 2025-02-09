@@ -81,11 +81,9 @@ function run(n, p)
     
     thread_dicts = Vector{Dict{String, Any}}()
     
-    # Start the periodic writer task
     @spawn periodic_writer(heights, thread_dicts, p)
     
-    # Run the experiment
     run_experiment(heights, thread_dicts, experimentThreads, n, p)
 end
 
-run(4, 11)
+run(4, 13)
