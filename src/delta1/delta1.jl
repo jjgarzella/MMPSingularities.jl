@@ -112,11 +112,25 @@ function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     remove_pth_power_terms(g, g.opPlan.key, vecs, g.opPlan.prime, g.opPlan.primeArray)
 
     multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(Array(vecs))
-    multimodResultCoeffs = CuArray(multimodResultCoeffs)
     encodedDegs = CuArray(encodedDegs)
 
-    resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
-    # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
+    # resultCoeffs = GPUPolynomials.cpu_build_result(multimodResultCoeffs, Array(g.opPlan.crtPlan))
+    crtPlan = Array(g.opPlan.crtPlan)
+    resultCoeffs = zeros(eltype(crtPlan), size(multimodResultCoeffs, 1))
+
+    for i in axes(multimodResultCoeffs, 1)
+        subarr = view(multimodResultCoeffs, i, :)
+        x = eltype(crtPlan)(subarr[1])
+        for j in axes(crtPlan, 2)
+            a = mul_mod(x, crtPlan[2, j], crtPlan[3, j])
+            b = mul_mod(eltype(crtPlan)(subarr[j + 1]), crtPlan[1, j], crtPlan[3, j])
+            x = add_mod(a, b, crtPlan[3, j])
+        end
+
+        resultCoeffs[i] = x
+    end
+
+    @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), resultCoeffs)
 
     p = eltype(resultCoeffs)(g.opPlan.prime)
     cpu_resultCoeffs = Array(resultCoeffs)
