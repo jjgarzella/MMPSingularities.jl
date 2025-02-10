@@ -36,6 +36,27 @@ function random_homog_poly_mod(p,vars,deg)
   res
 end#fucntion
 
+
+"""
+maximum polynomial
+"""
+function max_homog_poly_mod(p,vars,deg)
+  nVars = length(vars)
+
+  var_combos = collect(allmonomialcombos(vars,deg))
+  nMons = length(var_combos)
+
+  # the line where it all happens
+  coefs = fill(p-1, nMons)
+
+  res = zero(vars[1])
+  for i in 1:nMons
+    res = res + coefs[i] * prod(var_combos[i])
+  end
+
+  res
+end#fucntion
+
 """
 Returns k random monomials in the variables
 vars of degree deg.

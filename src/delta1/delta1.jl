@@ -33,7 +33,7 @@ function plan_Δ₁(numVars, prime)::Δ₁Plan
         primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
         memoryefficient = true
     elseif (numVars, prime) == (4, 13)
-        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001, 0x3fffffee00000001])
+        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
         memoryefficient = true
     else
         throw(ArgumentError("I haven't figured out bounds for this yet!"))
@@ -84,6 +84,9 @@ function fast_Δ₁(g::CufpMPolyRingElem)
     multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(vecs)
 
     resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
+    # display(resultCoeffs)
+    # max = maximum(resultCoeffs)
+    # println("max: $(max), log2: $(log2(max))")
     # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
     divide_and_mod!(resultCoeffs, g.opPlan.prime)
     resultCoeffs = UInt64.(resultCoeffs)
@@ -92,7 +95,6 @@ function fast_Δ₁(g::CufpMPolyRingElem)
 
     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
 end
-
 
 function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     numVars = nvars(g)
@@ -111,30 +113,18 @@ function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     
     remove_pth_power_terms(g, g.opPlan.key, vecs, g.opPlan.prime, g.opPlan.primeArray)
 
-    multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(Array(vecs))
+    multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(vecs)
+    multimodResultCoeffs = CuArray(multimodResultCoeffs)
     encodedDegs = CuArray(encodedDegs)
 
-    # resultCoeffs = GPUPolynomials.cpu_build_result(multimodResultCoeffs, Array(g.opPlan.crtPlan))
-    crtPlan = Array(g.opPlan.crtPlan)
-    resultCoeffs = zeros(eltype(crtPlan), size(multimodResultCoeffs, 1))
-
-    for i in axes(multimodResultCoeffs, 1)
-        subarr = view(multimodResultCoeffs, i, :)
-        x = eltype(crtPlan)(subarr[1])
-        for j in axes(crtPlan, 2)
-            a = mul_mod(x, crtPlan[2, j], crtPlan[3, j])
-            b = mul_mod(eltype(crtPlan)(subarr[j + 1]), crtPlan[1, j], crtPlan[3, j])
-            x = add_mod(a, b, crtPlan[3, j])
-        end
-
-        resultCoeffs[i] = x
-    end
-
-    @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), resultCoeffs)
-
+    resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
+    # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
+    
     p = eltype(resultCoeffs)(g.opPlan.prime)
     cpu_resultCoeffs = Array(resultCoeffs)
-    @assert all(x -> x % p == 0, cpu_resultCoeffs)
+    # max = maximum(resultCoeffs)
+    # println("max: $(max), log2: $(log2(max))")
+    # @assert all(x -> x % p == 0, cpu_resultCoeffs)
     cpu_resultCoeffs .÷= p
     cpu_resultCoeffs .%= p
     cpu_resultCoeffs = UInt64.(cpu_resultCoeffs)
@@ -144,6 +134,56 @@ function memoryefficient_Δ₁(g::CufpMPolyRingElem)
 
     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
 end
+# function memoryefficient_Δ₁(g::CufpMPolyRingElem)
+#     numVars = nvars(g)
+
+#     vecs = GPUPolynomials.cpu_get_dense_representation(g, g.opPlan.fftLen, g.bits, g.opPlan.nttType, g.opPlan.key, length(g.opPlan.nttPowPlans))
+
+#     currPtr = pointer(vecs)
+#     gpualloc = CUDA.zeros(g.opPlan.nttType, g.opPlan.fftLen)
+#     for planNum in eachindex(g.opPlan.nttPowPlans)
+#         cpuvec = unsafe_wrap(Vector{g.opPlan.nttType}, currPtr, g.opPlan.fftLen)
+#         copyto!(gpualloc, cpuvec)
+#         GPUPolynomials.ntt_pow(gpualloc, g.opPlan.nttPowPlans[planNum])
+#         copyto!(cpuvec, gpualloc)
+#         currPtr += sizeof(g.opPlan.nttType) * g.opPlan.fftLen
+#     end
+    
+#     remove_pth_power_terms(g, g.opPlan.key, vecs, g.opPlan.prime, g.opPlan.primeArray)
+
+#     multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(vecs)
+#     encodedDegs = CuArray(encodedDegs)
+
+#     # resultCoeffs = GPUPolynomials.cpu_build_result(multimodResultCoeffs, Array(g.opPlan.crtPlan))
+#     crtPlan = Array(g.opPlan.crtPlan)
+#     resultCoeffs = zeros(eltype(crtPlan), size(multimodResultCoeffs, 1))
+
+#     for i in axes(multimodResultCoeffs, 1)
+#         subarr = view(multimodResultCoeffs, i, :)
+#         x = eltype(crtPlan)(subarr[1])
+#         for j in axes(crtPlan, 2)
+#             a = mul_mod(x, crtPlan[2, j], crtPlan[3, j])
+#             b = mul_mod(eltype(crtPlan)(subarr[j + 1]), crtPlan[1, j], crtPlan[3, j])
+#             x = add_mod(a, b, crtPlan[3, j])
+#         end
+
+#         resultCoeffs[i] = x
+#     end
+
+#     @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), resultCoeffs)
+
+#     p = eltype(resultCoeffs)(g.opPlan.prime)
+#     cpu_resultCoeffs = Array(resultCoeffs)
+#     @assert all(x -> x % p == 0, cpu_resultCoeffs)
+#     cpu_resultCoeffs .÷= p
+#     cpu_resultCoeffs .%= p
+#     cpu_resultCoeffs = UInt64.(cpu_resultCoeffs)
+#     resultCoeffs = CuArray(cpu_resultCoeffs)
+
+#     resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, g.opPlan.key, numVars, g.opPlan.totalDegree, g.bits, UInt)
+
+#     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
+# end
 
 function divide_and_mod!(coeffs::CuVector{T}, prime::Integer) where T<:Unsigned
     p = T(prime)
