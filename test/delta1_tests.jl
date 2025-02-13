@@ -28,7 +28,7 @@ function run_tests()
     # time_K3_5()
     # time_K3_7()
     # time_K3_11()
-    # time_K3_13()
+    time_K3_13()
 end
 
 function test_K3_2()
@@ -121,6 +121,7 @@ function time_K3_5()
         fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
         fpminus1_gpu.opPlan = plan
         CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+        # gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     end
 end
 
@@ -166,6 +167,7 @@ function time_K3_7()
         fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
         fpminus1_gpu.opPlan = plan
         CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+        # gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     end
 end
 
@@ -187,7 +189,7 @@ function time_K3_11()
 
     return
 end
-
+using Profile
 function time_K3_13()
     n = 4
     p = 13
@@ -202,10 +204,27 @@ function time_K3_13()
     fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
     fpminus1_gpu.opPlan = plan
 
-    CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+    display(@profile gpud1 = MMPSingularities.Δ₁(fpminus1_gpu))
 
     return
 end
+
+# function time_K3_13()
+#     n = 4
+#     p = 11
+#     R, vars = polynomial_ring(GF(p), n)
+#     fpminus1 = max_homog_poly_mod(p, vars, n * (p - 1))
+#     # f = x^4 + y^4
+
+#     plan = MMPSingularities.plan_Δ₁(n, p)
+
+#     fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
+#     fpminus1_gpu.opPlan = plan
+
+#     CUDA.@time gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
+
+#     return
+# end
 
 
 run_tests()

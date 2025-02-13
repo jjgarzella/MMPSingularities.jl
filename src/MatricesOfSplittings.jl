@@ -202,6 +202,7 @@ function polynomial_to_vector(f, n, R, PR, order=:lex)
 
     res
 end
+
 function convert_to_gpu_representation(p)
     coeffs = coefficients(p)
 
@@ -353,6 +354,14 @@ function matrix_of_multiply_then_split(poly::FqMPolyRingElem)
     return matrix_of_multiply_then_split(p, coeffs, degs, d, n, poly.data.bits)
 end
 
+function matrix_of_multiply_then_split(poly::CufpMPolyRingElem)
+    p = poly.parent.n
+    n = poly.parent.nvars
+
+    d = Int(n * (p - 1))
+
+    return matrix_of_multiply_then_split(p, Array(poly.coeffs), Array(poly.exps), d, n, poly.bits)
+end
 
 function matrix_of_multiply_then_split(p,coeffs,degs,d,numVars,bits)
     mons = gen_exp_vec(numVars,d)
@@ -402,6 +411,19 @@ function matrix_of_multiply_then_split_gpu(poly::FqMPolyRingElem, pregen = nothi
     degs = CuArray(get_exps(poly))
 
     return matrix_of_multiply_then_split_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
+end
+
+function matrix_of_multiply_then_split_gpu(poly::CufpMPolyRingElem, pregen = nothing)
+    p = poly.parent.n
+    n = poly.parent.nvars
+
+    if pregen === nothing
+        pregen = pregen_MOMTS(n, p)
+    end
+
+    d = Int(n * (p - 1))
+
+    return matrix_of_multiply_then_split_gpu(p, poly.coeffs, poly.exps, d, n, poly.bits, pregen)
 end
 
 function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result)
@@ -504,6 +526,15 @@ function matrix_of_multiply_then_split_sortmodp_kronecker(poly::FqMPolyRingElem)
     degs = get_exps(poly)
 
     return matrix_of_multiply_then_split_sortmodp_kronecker(p, coeffs, degs, d, n, poly.data.bits)
+end
+
+function matrix_of_multiply_then_split_sortmodp_kronecker(poly::CufpMPolyRingElem)
+    p = poly.parent.n
+    n = poly.parent.nvars
+
+    d = Int(n * (p - 1))
+
+    return matrix_of_multiply_then_split_sortmodp_kronecker(p, Array(poly.coeffs), Array(poly.exps), d, n, poly.bits)
 end
 
 function matrix_of_multiply_then_split_sortmodp_kronecker(p::UInt, coefs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
@@ -652,6 +683,15 @@ function matrix_of_multiply_then_split_wics(poly::FqMPolyRingElem)
     return matrix_of_multiply_then_split_wics(p, coeffs, degs, d, n, poly.data.bits)
 end
 
+function matrix_of_multiply_then_split_wics(poly::CufpMPolyRingElem)
+    p = poly.parent.n
+    n = poly.parent.nvars
+
+    d = Int(n * (p - 1))
+
+    return matrix_of_multiply_then_split_wics(p, Array(poly.coeffs), Array(poly.exps), d, n, poly.bits)
+end
+
 function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
@@ -696,35 +736,6 @@ function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned},
     end
 
     return result
-end
-
-function matrix_of_multiply_then_split_wics_gpu(poly::FqMPolyRingElem, pregen = nothing)
-    
-    p = poly.parent.data.n
-    n = poly.parent.data.nvars
-
-    if pregen === nothing
-        pregen = generate_MOMTS(n, p)
-    end
-
-    d = Int(n * (p - 1))
-
-    coeffs = CuArray(get_coeffs(poly))
-    degs = CuArray(get_exps(poly))
-
-    return matrix_of_multiply_then_split_wics_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
-end
-
-function matrix_of_multiply_then_split(poly::CufpMPolyRingElem, plan = nothing)
-    p = poly.parent.n
-    n = poly.parent.nvars
-
-    if plan === nothing
-        plan = generate_MOMTS(n, p)
-    end
-
-    d = Int(n * (p - 1))
-    return matrix_of_multiply_then_split_wics_gpu(p, poly.coeffs, poly.exps, d, n, poly.bits, plan)
 end
 
 function matrix_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::MyMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
@@ -787,6 +798,36 @@ function pregen_MOMTS(n, p)
     weakintegercompositions = CuArray(weakintegercompositions)
 
     return MOMTSPregen(length(encodedMons), reverseMons, weakintegercompositions, startindices, lengths)
+end
+
+
+function matrix_of_multiply_then_split_wics_gpu(poly::FqMPolyRingElem, pregen = nothing)
+    
+    p = poly.parent.data.n
+    n = poly.parent.data.nvars
+
+    if pregen === nothing
+        pregen = generate_MOMTS(n, p)
+    end
+
+    d = Int(n * (p - 1))
+
+    coeffs = CuArray(get_coeffs(poly))
+    degs = CuArray(get_exps(poly))
+
+    return matrix_of_multiply_then_split_wics_gpu(p, coeffs, degs, d, n, poly.data.bits, pregen)
+end
+
+function matrix_of_multiply_then_split_wics_gpu(poly::CufpMPolyRingElem, plan = nothing)
+    p = poly.parent.n
+    n = poly.parent.nvars
+
+    if plan === nothing
+        plan = generate_MOMTS(n, p)
+    end
+
+    d = Int(n * (p - 1))
+    return matrix_of_multiply_then_split_wics_gpu(p, poly.coeffs, poly.exps, d, n, poly.bits, plan)
 end
 
 function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)

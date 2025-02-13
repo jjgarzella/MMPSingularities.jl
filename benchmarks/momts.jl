@@ -3,6 +3,8 @@ include("../src/RandomPolynomials.jl")
 
 using CUDA
 using Oscar
+using Statistics
+using BenchmarkTools
 
 """
 This is copied and pasted from 
@@ -162,7 +164,7 @@ end
 
 function test_matrix()
     n = 4
-    primes = [3, 5, 7]#, 11, 13]
+    primes = [3, 5, 7, 11, 13]
     
     for p in primes
         R, vars = polynomial_ring(GF(p), n)
@@ -188,7 +190,7 @@ function test_matrix()
         #monomials = allmonomialcombos(vars,n*(p-1)*p) 
         
         #fake_delta1 = sum(monomials)
-        Δ₁fpminus1 = fake_delta1
+        Δ₁fpminus1 = MMPSingularities.CufpMPolyRingElem(fake_delta1.data)
 
         println("starting momts pregen")
 
@@ -196,50 +198,30 @@ function test_matrix()
         
         println("done with momts pregen")
 
-        if p <= 7
-            MMPSingularities.matrix_of_multiply_then_split(Δ₁fpminus1)
-        end
-        println("trivial compiled")
-        MMPSingularities.matrix_of_multiply_then_split_gpu(Δ₁fpminus1, momtspregen)
-        println("gpu trivial compiled")
-        MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(Δ₁fpminus1)
-        println("merge compiled")
-        MMPSingularities.matrix_of_multiply_then_split_wics(Δ₁fpminus1)
-        println("wics compiled")
-        MMPSingularities.matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1, momtspregen)
-        println("gpu wics compiled")
-        times = zeros(Float64, 5)
-        for i in 1:10
             # @time mat0 = MMPSingularities.matrix_of_multiply_then_split_correct(Δ₁fpminus1)
-            if p <= 7
-                trivial = @timed MMPSingularities.matrix_of_multiply_then_split(Δ₁fpminus1)
-            else
-                trivial = @timed zero(Float64)
-            end
-            println("trivial done")
-            gputrivial = CUDA.@timed MMPSingularities.matrix_of_multiply_then_split_gpu(Δ₁fpminus1, momtspregen)
-            println("gpu trivial done")
-            merge = @timed MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(Δ₁fpminus1)
-            println("merge done")
-            wics = @timed MMPSingularities.matrix_of_multiply_then_split_wics(Δ₁fpminus1)
-            println("wics done")
-            gpuwics = CUDA.@timed MMPSingularities.matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1, momtspregen)
-            println("gpuwics done")
-
-            times[1] += trivial.time
-            times[2] += gputrivial.time
-            times[3] += merge.time
-            times[4] += wics.time
-            times[5] += gpuwics.time
+        if p <= 7
+            trivial = @benchmark MMPSingularities.matrix_of_multiply_then_split($Δ₁fpminus1)
+        else
+            trivial = @benchmark 1 + 1
         end
-        times ./= 10
+        println("trivial done")
+        gputrivial = @benchmark CUDA.@sync MMPSingularities.matrix_of_multiply_then_split_gpu($Δ₁fpminus1, $momtspregen)
+        println("gpu trivial done")
+        merge = @benchmark MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker($Δ₁fpminus1)
+        println("merge done")
+        wics = @benchmark MMPSingularities.matrix_of_multiply_then_split_wics($Δ₁fpminus1)
+        println("wics done")
+        gpuwics = @benchmark CUDA.@sync MMPSingularities.matrix_of_multiply_then_split_wics_gpu($Δ₁fpminus1, $momtspregen)
+        println("gpuwics done")
+
+        nspers = 1000000000
         mystr = """
         p = $p:
-        trivial: $(times[1]) s
-        gputrivial: $(times[2]) s
-        merge: $(times[3]) s
-        wics: $(times[4]) s
-        gpuwics: $(times[5]) s
+        trivial: $((mean(trivial.times .- trivial.gctimes)) / nspers) s
+        gputrivial: $((mean(gputrivial.times .- gputrivial.gctimes)) / nspers) s
+        merge: $((mean(merge.times .- merge.gctimes) / nspers)) s
+        wics: $((mean(wics.times .- wics.gctimes) / nspers)) s
+        gpuwics: $((mean(gpuwics.times .- gpuwics.gctimes)) / nspers) s
 
         """
         open("matrixtimes.txt", "a") do file

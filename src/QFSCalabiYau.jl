@@ -161,7 +161,7 @@ function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen)
   start_vector = lift_to_Int64(vector(fpminus1,m))
 
 
-  M = Array(matrix_of_multiply_then_split(Δ₁fpminus1, pregen.momtspregen))
+  M = Array(matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1, pregen.momtspregen))
   nMonomials = length(start_vector)
   zzs = zeros(parent(start_vector[1]),nMonomials)
 

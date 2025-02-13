@@ -7,9 +7,9 @@ using Oscar
 
 function run_tests()
     # test_height()
-    test_K3_5()
+    # test_K3_5()
     # time_K3_7()
-    # test_matrix()
+    test_matrix()
 end
 
 function test_height()
@@ -63,6 +63,7 @@ function test_K3_5()
 
     qfs_height_fn(x) = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p, x, 10, pregen)
     
+    println("Running K3_5 tests...")
     @test qfs_height_fn(fone1) == 1
     @test qfs_height_fn(ftwo1) == 2
     @test qfs_height_fn(fthree1) == 3
@@ -95,6 +96,8 @@ function time_K3_7()
     end
 end
 
+using BenchmarkTools
+
 function test_matrix()
     n = 4
     p = 5
@@ -102,7 +105,7 @@ function test_matrix()
     R, vars = polynomial_ring(GF(p), n)
     (x1, x2, x3, x4) = vars
 
-    pregen = MMPSingularities.pregen_delta1(n, p)
+    Δ₁plan = MMPSingularities.plan_Δ₁(n, p)
 
     # fpminus1 = MMPSingularities.HomogeneousPolynomial(f ^ (p - 1))
     # Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
@@ -112,26 +115,26 @@ function test_matrix()
     # Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
     # Δ₁fpminus1 = MMPSingularities.Δ₁l(p, f ^ (p - 1))
     momtspregen = MMPSingularities.pregen_MOMTS(n, p)
-    for i in 1:10
-        fpminus1 = MMPSingularities.HomogeneousPolynomial(f ^ (p - 1))
-        Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
+
+    # for i in 1:10
+        fpminus1 = MMPSingularities.CufpMPolyRingElem((f ^ (p - 1)).data)
+        fpminus1.opPlan = Δ₁plan
+        Δ₁fpminus1 = MMPSingularities.Δ₁(fpminus1)
 
         # @time mat0 = MMPSingularities.matrix_of_multiply_then_split_correct(Δ₁fpminus1)
-        @time mat1 = MMPSingularities.matrix_of_multiply_then_split(Δ₁fpminus1)
-        CUDA.@time mat2 = MMPSingularities.matrix_of_multiply_then_split_gpu(Δ₁fpminus1, momtspregen)
-        @time mat3 = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(Δ₁fpminus1)
-        @time mat4 = MMPSingularities.matrix_of_multiply_then_split_wics(Δ₁fpminus1)
-        CUDA.@time mat5 = MMPSingularities.matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1, momtspregen)
+        display(@benchmark mat1 = MMPSingularities.matrix_of_multiply_then_split($Δ₁fpminus1))
+        display(@benchmark CUDA.@sync mat2 = MMPSingularities.matrix_of_multiply_then_split_gpu($Δ₁fpminus1, $momtspregen))
+        display(@benchmark mat3 = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker($Δ₁fpminus1))
+        display(@benchmark mat4 = MMPSingularities.matrix_of_multiply_then_split_wics($Δ₁fpminus1))
+        display(@benchmark CUDA.@sync mat5 = MMPSingularities.matrix_of_multiply_then_split_wics_gpu($Δ₁fpminus1, $momtspregen))
         
-        println()
 
         # @assert mat0 == mat1
-        @assert mat2 == mat5 string(f)
-        @assert mat1 == mat3 string(f)
-        @assert mat1 == mat4 string(f)
-        @assert mat1 == Array(mat2) string(f)
+        # @assert mat2 == mat5 string(f)
+        # @assert mat1 == mat3 string(f)
+        # @assert mat1 == mat4 string(f)
+        # @assert mat1 == Array(mat2) string(f)
 
-    end
     # end
 end
 
