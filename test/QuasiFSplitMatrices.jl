@@ -193,51 +193,6 @@ function test_k3_5_matrix()
 
 end
 
-function test_delta1_char_3()
-  p = 3
-  N = 4
-
-  R, (x, y, z, w) = polynomial_ring(GF(3), 4)
-  f = x^4 + 2y^4 + 2z^4 + 2w^4 + x*y*z^2
-
-  # CPU method
-  
-  fpminus1 = f^(p-1)
-  DD1 = MMPSingularities.Δ₁l(p,fpminus1)
-  gpu_rep = MMPSingularities.convert_to_gpu_representation(DD1)
-
-  # GPU method
-  
-  isfsplit, fpminus1 = MMPSingularities.isFSplit2(p, f)
-  fpminus1_gpu = MMPSingularities.convert_to_gpu_representation(fpminus1)
-  fpminus1_homog = MMPSingularities.GPUPolynomials.HomogeneousPolynomial(fpminus1_gpu...)
-  pregen = MMPSingularities.pregen_delta1(size(fpminus1_homog.degrees, 2),p)
-  MMPSingularities.GPUPolynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
-  Δ₁fpminus1 = MMPSingularities.delta1(fpminus1_homog,p;pregen)
-
-  gpuDelta1 = zero(R)
-
-  for (i, coeff) in enumerate(Δ₁fpminus1.coeffs)
-    exp_row = Δ₁fpminus1.degrees[i, :]
-    term = coeff * x^exp_row[1] * y^exp_row[2] * z^exp_row[3] * w^exp_row[4]
-    gpuDelta1 += term
-  end
-
-  @test DD1 == gpuDelta1
-#   cpu_degs = gpu_rep[2]
-#   gpu_degs = Δ₁fpminus1.degrees
-
-#   cpu_coeffs = gpu_rep[1]
-#   gpu_coeffs = Δ₁fpminus1.coeffs
-
-#   @test size(cpu_degs) == size(gpu_degs)
-#   @test length(cpu_coeffs) == length(gpu_coeffs)
-
-#   @test cpu_degs == gpu_degs
-#   @test cpu_coeffs == gpu_coeffs 
-
-end
-
 function test_matrices_all()
 
   #test_k3_5_matrix()

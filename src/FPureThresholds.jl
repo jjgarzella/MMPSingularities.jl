@@ -23,8 +23,6 @@ function estimateFPureThreshold(p,e,nu)
     nu / p^e
 end
 
-
-
 function estimateFPureThreshold(f,N)
 
 end
