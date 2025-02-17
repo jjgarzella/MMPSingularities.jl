@@ -6,9 +6,11 @@ using CUDA
 using Oscar
 
 function run_tests()
-    test_K3_3()
-    test_K3_5()
-    test_K3_7()
+    test_K3_3() # Have not tested any of these heights with the
+    test_K3_5() # guaranteed working methods, we honestly have a 
+    test_K3_7() # pretty big problem if they aren't right
+    # test_K3_11()
+    # test_K3_13()
     test_matrix()
 end
 
@@ -25,7 +27,7 @@ function test_K3_3()
     f5 = x^4 + y^4 + z^4 + w^4 + x^3*z + z^3*w + y*z^2*w + y*z*w^2
     f6 = x^4 + y^4 + z^4 + w^4 + x^2*z^2 + x^2*y*z + x*z^3
     f7 = x^4 + y^4 + z^4 + w^4 + x*y^2*z + x*z^2*w + y*z*w^2 + y^2*z*w
-    f8 = x^4 + x^2*y*z + x^2*y*w + 2x^2*z^2 + x*y*w^2 + 2*y^4 + y^3*w + z^4 + w^4
+    f8 = x^4 + x^2*y*z + x^2*y*w + 2*x^2*z^2 + x*y*w^2 + 2*y^4 + y^3*w + z^4 + w^4
     f9 = x^4 + y^4 + z^4 + w^4 + x*y^3 + y^3*w + z^2*w^2 + 2*x*y*z^2 + y*z*w^2
     f10 = x^4 + 2*x^2*y*z + x^2*y*w + x*y^2*w + y^4 + y^3*w + y^2*z^2 + 2*y^2*z*w + y^2*w^2 + y*z^3 + y*z^2*w + y*z*w^2 + z^4 + z*w^3
     finfty = x^4 + y^4 + z^4 + w^4
@@ -182,6 +184,66 @@ function test_K3_7()
     @test qfs_height_fn(finfty) > 10
 end
 
+function test_K3_11()
+    n = 4
+    p = 11
+
+    R, vars = polynomial_ring(GF(p), n)
+
+    (x1, x2, x3, x4) = vars
+
+    fone1 = 4*x1^4 + 6*x1^3*x2 + x1^3*x3 + 2*x1^3*x4 + 3*x1^2*x2^2 + x1^2*x2*x3 + 3*x1^2*x2*x4 + 6*x1^2*x3^2 + 6*x1^2*x3*x4 + 8*x1^2*x4^2 + 7*x1*x2^3 + 2*x1*x2^2*x3 + 8*x1*x2^2*x4 + 8*x1*x2*x3*x4 + 10*x1*x2*x4^2 + 10*x1*x3^3 + 9*x1*x3^2*x4 + 6*x1*x3*x4^2 + 3*x1*x4^3 + 6*x2^4 + 7*x2^3*x3 + 4*x2^3*x4 + 10*x2^2*x3^2 + 3*x2^2*x3*x4 + 5*x2^2*x4^2 + 4*x2*x3^2*x4 + 6*x2*x4^3 + 3*x3^4 + 4*x3^3*x4 + 7*x3^2*x4^2 + 9*x3*x4^3 + 5*x4^4
+
+    ftwo1 = 4*x1^4 + 5*x1^3*x2 + 9*x1^3*x3 + 2*x1^3*x4 + 8*x1^2*x2^2 + x1^2*x2*x3 + 9*x1^2*x2*x4 + x1^2*x3^2 + 8*x1^2*x3*x4 + 6*x1*x2^3 + 10*x1*x2^2*x3 + 2*x1*x2^2*x4 + 10*x1*x2*x3^2 + 9*x1*x2*x3*x4 + 6*x1*x2*x4^2 + 8*x1*x3^3 + 4*x1*x3^2*x4 + 7*x1*x3*x4^2 + 9*x1*x4^3 + 3*x2^4 + 7*x2^3*x3 + 6*x2^3*x4 + 10*x2^2*x3^2 + 8*x2^2*x3*x4 + x2^2*x4^2 + 9*x2*x3^3 + 6*x2*x3^2*x4 + x2*x3*x4^2 + 9*x3^4 + 10*x3^3*x4 + x3^2*x4^2 + x3*x4^3 + 4*x4^4
+
+    fthree1 = 10*x1^4 + 9*x1^3*x2 + 5*x1^3*x3 + 4*x1^3*x4 + 3*x1^2*x2^2 + 9*x1^2*x2*x3 + 4*x1^2*x2*x4 + 10*x1^2*x3^2 + 4*x1^2*x3*x4 + 8*x1^2*x4^2 + 8*x1*x2^3 + 9*x1*x2^2*x3 + 3*x1*x2^2*x4 + 7*x1*x2*x3^2 + 3*x1*x2*x4^2 + 8*x1*x3^3 + 2*x1*x3^2*x4 + x1*x3*x4^2 + 7*x1*x4^3 + 2*x2^4 + 3*x2^3*x4 + x2^2*x3^2 + x2^2*x3*x4 + x2^2*x4^2 + 5*x2*x3^3 + 9*x2*x3^2*x4 + 9*x2*x3*x4^2 + 4*x2*x4^3 + 5*x3^4 + 10*x3^3*x4 + 10*x3*x4^3 + 10*x4^4
+
+    ffour1 = 2*x1^4 + 4*x1^3*x2 + 9*x1^3*x3 + 10*x1^3*x4 + 2*x1^2*x2^2 + 4*x1^2*x2*x3 + 4*x1^2*x2*x4 + 4*x1^2*x3^2 + 10*x1^2*x3*x4 + 9*x1^2*x4^2 + 5*x1*x2^3 + 5*x1*x2^2*x3 + x1*x2^2*x4 + 8*x1*x2*x3^2 + 2*x1*x2*x3*x4 + 10*x1*x2*x4^2 + 8*x1*x3^3 + 7*x1*x3^2*x4 + 5*x1*x3*x4^2 + 4*x1*x4^3 + 3*x2^4 + 6*x2^3*x3 + 4*x2^3*x4 + 10*x2^2*x3^2 + 5*x2^2*x3*x4 + 5*x2^2*x4^2 + x2*x3^3 + 5*x2*x4^3 + 5*x3^4 + 7*x3^2*x4^2 + 5*x3*x4^3 + 9*x4^4
+
+    ffive1 = 10*x1^4 + x1^3*x2 + 6*x1^3*x3 + 3*x1^3*x4 + x1^2*x2^2 + 9*x1^2*x2*x3 + 6*x1^2*x2*x4 + 6*x1^2*x3^2 + 8*x1^2*x3*x4 + 4*x1^2*x4^2 + 3*x1*x2^3 + 7*x1*x2^2*x3 + 3*x1*x2^2*x4 + 7*x1*x2*x3^2 + 9*x1*x2*x3*x4 + 8*x1*x2*x4^2 + 7*x1*x3^3 + x1*x3*x4^2 + 7*x1*x4^3 + x2^4 + 3*x2^3*x3 + 7*x2^3*x4 + 5*x2^2*x3^2 + 7*x2^2*x3*x4 + 8*x2^2*x4^2 + 8*x2*x3^3 + 5*x2*x3^2*x4 + x2*x3*x4^2 + 9*x2*x4^3 + 7*x3^4 + 4*x3^3*x4 + 4*x3^2*x4^2 + 3*x3*x4^3
+
+    pregen = MMPSingularities.pregen_qfsheight(n, p)
+
+    qfs_height_fn(x) = MMPSingularities.quasiFSplitHeight_CY_lift_wics_gpu(p, x, 10, pregen)
+    
+    println("Running K3_11 tests...")
+    @test qfs_height_fn(fone1) == 1
+    @test qfs_height_fn(ftwo1) == 2
+    @test qfs_height_fn(fthree1) == 3
+    @test qfs_height_fn(ffour1) == 4
+    @test qfs_height_fn(ffive1) == 5
+end
+
+function test_K3_13()
+    n = 4
+    p = 13
+
+    R, vars = polynomial_ring(GF(p), n)
+
+    (x1, x2, x3, x4) = vars
+
+    fone1 = 6*x1^4 + 7*x1^3*x3 + 4*x1^3*x4 + 6*x1^2*x2^2 + 7*x1^2*x2*x3 + 9*x1^2*x2*x4 + 2*x1^2*x3^2 + 3*x1^2*x3*x4 + 12*x1^2*x4^2 + 8*x1*x2^3 + 4*x1*x2^2*x3 + x1*x2^2*x4 + 9*x1*x2*x3^2 + 8*x1*x2*x3*x4 + 10*x1*x2*x4^2 + 8*x1*x3^3 + 2*x1*x3^2*x4 + 9*x1*x3*x4^2 + 4*x1*x4^3 + 5*x2^4 + 4*x2^3*x3 + 2*x2^2*x3^2 + x2^2*x3*x4 + 2*x2^2*x4^2 + 10*x2*x3^3 + 2*x2*x3^2*x4 + 2*x2*x3*x4^2 + 5*x2*x4^3 + 4*x3^4 + 3*x3^2*x4^2 + 2*x4^4
+
+    ftwo1 = 5*x1^4 + 6*x1^3*x2 + 12*x1^3*x3 + 11*x1^3*x4 + 7*x1^2*x2^2 + 8*x1^2*x2*x3 + 3*x1^2*x2*x4 + 11*x1^2*x3^2 + 9*x1^2*x3*x4 + 6*x1^2*x4^2 + 3*x1*x2^3 + 2*x1*x2^2*x3 + x1*x2^2*x4 + 9*x1*x2*x4^2 + 6*x1*x3^3 + 3*x1*x3^2*x4 + 8*x1*x3*x4^2 + 7*x1*x4^3 + 6*x2^4 + 4*x2^3*x3 + 3*x2^2*x3^2 + 6*x2^2*x3*x4 + 7*x2^2*x4^2 + 12*x2*x3^3 + 3*x2*x3^2*x4 + 2*x2*x3*x4^2 + x2*x4^3 + 6*x3^4 + 4*x3^3*x4 + 9*x3^2*x4^2 + 5*x3*x4^3 + 8*x4^4 
+
+    fthree1 = 8*x1^4 + 2*x1^3*x2 + 3*x1^3*x3 + x1^3*x4 + 6*x1^2*x2^2 + 7*x1^2*x2*x3 + 5*x1^2*x2*x4 + 2*x1^2*x3^2 + x1^2*x4^2 + 11*x1*x2^3 + 10*x1*x2^2*x3 + 3*x1*x2^2*x4 + 5*x1*x2*x3^2 + 10*x1*x2*x3*x4 + 7*x1*x2*x4^2 + 12*x1*x3^3 + 12*x1*x3^2*x4 + 5*x1*x3*x4^2 + 7*x1*x4^3 + 7*x2^4 + 6*x2^3*x3 + 3*x2^3*x4 + 10*x2^2*x3^2 + 5*x2^2*x3*x4 + 12*x2^2*x4^2 + x2*x3^3 + 3*x2*x3^2*x4 + 12*x2*x3*x4^2 + 8*x2*x4^3 + 10*x3^4 + 7*x3^3*x4 + 4*x3^2*x4^2 + 8*x3*x4^3 + 2*x4^4
+
+    ffour1 = 4*x1^4 + 4*x1^3*x2 + 2*x1^3*x3 + 3*x1^3*x4 + 9*x1^2*x2^2 + 6*x1^2*x2*x3 + 7*x1^2*x2*x4 + 10*x1^2*x3^2 + x1^2*x3*x4 + 4*x1*x2^3 + 4*x1*x2^2*x3 + 6*x1*x2^2*x4 + 12*x1*x2*x3^2 + 7*x1*x2*x3*x4 + 3*x1*x2*x4^2 + 11*x1*x3^3 + 9*x1*x3^2*x4 + 10*x1*x3*x4^2 + 11*x1*x4^3 + 3*x2^4 + 5*x2^3*x3 + 8*x2^3*x4 + 5*x2^2*x3*x4 + 5*x2^2*x4^2 + 5*x2*x3^3 + 10*x2*x3^2*x4 + 2*x2*x3*x4^2 + 10*x2*x4^3 + 4*x3^4 + 5*x3^2*x4^2 + 4*x3*x4^3 + 6*x4^4
+
+    ffive1 = 11*x1^4 + 4*x1^3*x2 + 12*x1^3*x3 + 4*x1^3*x4 + 6*x1^2*x2^2 + 10*x1^2*x2*x3 + 4*x1^2*x2*x4 + x1^2*x3^2 + 7*x1^2*x3*x4 + 4*x1^2*x4^2 + 6*x1*x2^3 + 11*x1*x2^2*x3 + 7*x1*x2^2*x4 + 8*x1*x2*x3^2 + 10*x1*x2*x4^2 + x1*x3^3 + 9*x1*x3^2*x4 + 8*x1*x3*x4^2 + 11*x1*x4^3 + 4*x2^4 + 8*x2^3*x3 + 5*x2^2*x3*x4 + 7*x2^2*x4^2 + 8*x2*x3^3 + 6*x2*x3^2*x4 + 5*x2*x4^3 + 2*x3^4 + 10*x3^3*x4 + 8*x3^2*x4^2 + 10*x3*x4^3 + 6*x4^4
+
+    pregen = MMPSingularities.pregen_qfsheight(n, p)
+
+    qfs_height_fn(x) = MMPSingularities.quasiFSplitHeight_CY_lift_wics_gpu(p, x, 10, pregen)
+    
+    println("Running K3_13 tests...")
+    @test qfs_height_fn(fone1) == 1
+    @test qfs_height_fn(ftwo1) == 2
+    @test qfs_height_fn(fthree1) == 3
+    @test qfs_height_fn(ffour1) == 4
+    @test qfs_height_fn(ffive1) == 5
+end
+
 using BenchmarkTools
 
 function test_matrix()
@@ -193,13 +255,8 @@ function test_matrix()
 
     Δ₁plan = MMPSingularities.plan_Δ₁(n, p)
 
-    # fpminus1 = MMPSingularities.HomogeneousPolynomial(f ^ (p - 1))
-    # Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
-    # for i in 1:10
     f = random_homog_poly_mod(p, vars, n)
-    # fpminus1 = MMPSingularities.HomogeneousPolynomial(f ^ (p - 1))
-    # Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
-    # Δ₁fpminus1 = MMPSingularities.Δ₁l(p, f ^ (p - 1))
+
     momtspregen = MMPSingularities.pregen_MOMTS(n, p)
 
     fpminus1 = MMPSingularities.CufpMPolyRingElem((f ^ (p - 1)).data)
