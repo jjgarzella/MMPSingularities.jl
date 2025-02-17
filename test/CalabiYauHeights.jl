@@ -45,12 +45,9 @@ in the array.
 function algorithms_k3surf(p)
   
   # create pregen manually, this will speed things up a lot
-  pregen_k3 = MMPSingularities.pregen_delta1(4,p)
+  pregen_k3 = MMPSingularities.pregen_qfsheight(4,p)
 
-  stateoftheart = [MMPSingularities.quasiFSplitHeight_CY_lift,
-                   MMPSingularities.quasiFSplitHeight_CY_lift_sort,
-                   (p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p,f,cutoff,pregen_k3),
-                   (p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_gpu(p,f,cutoff,pregen_k3)]
+  stateoftheart = [(p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_lift_wics_gpu(p,f,cutoff,pregen_k3)]
 
   others = [MMPSingularities.quasiFSplitHeight_CY_naive_expansion,
             MMPSingularities.quasiFSplitHeight_CY_lift_lazy,
@@ -60,40 +57,38 @@ function algorithms_k3surf(p)
 
   algs = [stateoftheart; others]
 
-
   if p == 2
     algs
   elseif p == 3
     algs
   elseif p == 5
-    algs[1:4]
+    [algs[1]]
   elseif p == 7
-    algs[2:4]
+    [algs[1]]
   elseif p == 11
-    [algs[3]]
+    [algs[1]]
   elseif p == 13
-    [algs[3]]
-  else
-    []
-  end
-    
-end
-
-function algorithms_cy3(p)
-  # create pregen manually, this will speed things up a lot
-  pregen_k3 = MMPSingularities.pregen_delta1(5,p)
-
-  stateoftheart = [MMPSingularities.quasiFSplitHeight_CY_lift,
-                   MMPSingularities.quasiFSplitHeight_CY_lift_sort,
-                   (p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p,f,cutoff,pregen_k3),
-                   (p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_gpu(p,f,cutoff,pregen_k3)]
-
-  if p == 2
-    stateoftheart
+    [algs[1]]
   else
     []
   end
 end
+
+# function algorithms_cy3(p)
+#   # create pregen manually, this will speed things up a lot
+#   pregen_k3 = MMPSingularities.pregen_delta1(5,p)
+
+#   stateoftheart = [MMPSingularities.quasiFSplitHeight_CY_lift,
+#                    MMPSingularities.quasiFSplitHeight_CY_lift_sort,
+#                    (p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p,f,cutoff,pregen_k3),
+#                    (p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_gpu(p,f,cutoff,pregen_k3)]
+
+#   if p == 2
+#     stateoftheart
+#   else
+#     []
+#   end
+# end
 
 
 """
@@ -128,9 +123,9 @@ useful for regression testing, though actually setting
 up regression testing seems like overkill right now.
 """
 function test_time_qfs(p,case,n,qfs_fn)
-  qfs_height_fn = qfs_fn#MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu
+  qfs_height_fn = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu
 
-  pregen = MMPSingularities.pregen_delta1(n,p)
+  pregen = MMPSingularities.plan_Δ₁(n,p)
 
 
 #  R, (x1,x2,x3,x4) = polynomial_ring(GF(p),n)
@@ -184,7 +179,7 @@ function test_heights_all()
   #test_matrix_K3(2,ff,MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker)
   test_time_qfs(2,ff3,5,
                 (p,case,cutoff,pregen) -> 
-                MMPSingularities.quasiFSplitHeight_CY_lift_sort(p,case,cutoff))
+                MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p,case,cutoff))
 
   #test_heights_k3surf(5,algs_k3[4]) # gpu (gpu delta1, no matrix)
 

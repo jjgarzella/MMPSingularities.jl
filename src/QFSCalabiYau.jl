@@ -141,8 +141,7 @@ raising to powers on the gpu
 
 Uses the matrix representaion of θFstar to compute the height,
 and uses the all-in-one-step method for getting this matrix,
-rather than repeatedly evaluating..
-
+rather than repeatedly evaluating.
 """
 function quasiFSplitHeight_CY_lift_sort_gpu(p,poly,cutoff,pregen)
   N = length(gens(parent(poly)))
@@ -191,10 +190,9 @@ polynomial multiplication algorithm (in OSCAR)
 function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
     # println("Doing check...")
     N = length(gens(parent(poly)))
-
-    f = poly
-    !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
-
+  
+    !isHomog(poly,ofdegree=N) && return -1
+  
     isfsplit, fpminus1 = isFSplit2(p, poly)
     isfsplit && return 1
 
@@ -213,23 +211,94 @@ function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
     n = 2
     KTYideal_n_new_gen = θFstar(f^(p-1))
   
-    # println("Finding height...")
+    fpminus1_gpu = CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = pregen.Δ₁plan
+    Δ₁fpminus1 = Δ₁l(fpminus1_gpu)
+  
+    m = N*(p-1)
+    critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
+    start_vector = lift_to_Int64(vector(fpminus1,m))
+  
+  
+    M = Array(matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5))
+    nMonomials = length(start_vector)
+    zzs = zeros(parent(start_vector[1]),nMonomials)
+  
+    n = 2
+  
+    KTYideal_n_new_gen = (M * start_vector) .% p
+  
     while n ≤ cutoff
-        #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
-        KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
-
-        if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
-        # We are quasi-F split of height n! Yay!!
-            return n
-        end
-
-        n = n + 1
-        #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-        KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+      KTYideal_n_new_gen == zzs && return cutoff + 2
+  
+      if KTYideal_n_new_gen[critical_ind] != 0
+        return n
+      end
+  
+      n = n + 1
+  
+      KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
     end
+  
+    return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end#function
 
-    return cutoff + 1
-end
+# """
+# Uses the gpu to calculate Δ_1 and then 
+# finds the quasi-F-split height using the classical
+# polynomial multiplication algorithm (in OSCAR)
+# """
+# function quasiFSplitHeight_CY_gpu(p,poly,cutoff,pregen=nothing)
+#     # println("Doing check...")
+#     N = length(gens(parent(poly)))
+
+#     f = poly
+#     !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+
+#     isfsplit, fpminus1 = isFSplit2(p, poly)
+#     isfsplit && return 1
+
+#     fpminus1_gpu = convert_to_gpu_representation(fpminus1)
+#     fpminus1_homog = GPUPolynomials.HomogeneousPolynomial(fpminus1_gpu...)
+
+#     if pregen === nothing
+#         pregen = pregen_delta1(size(fpminus1_homog, 2),p)
+#     end
+#     GPUPolynomials.sort_to_kronecker_order(fpminus1_homog, pregen.key1)
+    
+#     Δ₁fpminus1_gpu = delta1(fpminus1_homog,p;pregen)
+
+#     R, (x, y, z, w) = polynomial_ring(poly.parent.base_ring, 4)
+#     Δ₁fpminus1 = zero(R)
+
+#     for (i, coeff) in enumerate(Δ₁fpminus1_gpu.coeffs)
+#         exp_row = Δ₁fpminus1_gpu.degrees[i, :]
+#         term = coeff * x^exp_row[1] * y^exp_row[2] * z^exp_row[3] * w^exp_row[4]
+#         Δ₁fpminus1 += term
+#     end
+
+#     θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+
+#     n = 2
+#     KTYideal_n_new_gen = θFstar(f^(p-1))
+  
+#     # println("Finding height...")
+#     while n ≤ cutoff
+#         #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+#         KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+
+#         if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+#         # We are quasi-F split of height n! Yay!!
+#             return n
+#         end
+
+#         n = n + 1
+#         #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+#         KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+#     end
+
+#     return cutoff + 1
+# end
 
 # MARK - other methods
 #
@@ -325,83 +394,83 @@ function quasiFSplitHeight_CY_lift_lazy(p,poly,cutoff)
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
 
-"""
-Calculates the quasi-F-split height
-in the case that deg(poly) = nvars(parent(poly))
+# """
+# Calculates the quasi-F-split height
+# in the case that deg(poly) = nvars(parent(poly))
 
-cutoff is inclusive, so it should be the highest possible height
+# cutoff is inclusive, so it should be the highest possible height
 
-Uses the lift-based algorithm to calculate Δ₁
+# Uses the lift-based algorithm to calculate Δ₁
 
-Uses the matrix representaion of θFstar to compute the height,
-and uses the all-in-one-step method for getting this matrix,
-rather than repeatedly evaluating..
+# Uses the matrix representaion of θFstar to compute the height,
+# and uses the all-in-one-step method for getting this matrix,
+# rather than repeatedly evaluating..
 
-This uses the method `matrix_of_multiply_then_split` to get that
-matrix.
+# This uses the method `matrix_of_multiply_then_split` to get that
+# matrix.
 
-Note that the method matrix_of_multiply_then_split is currently broken,
-so this gives wrong results
-"""
-function quasiFSplitHeight_CY_lift_matrix_combined(p,poly,cutoff)
-  N = length(gens(parent(poly)))
+# Note that the method matrix_of_multiply_then_split is currently broken,
+# so this gives wrong results
+# """
+# function quasiFSplitHeight_CY_lift_matrix_combined(p,poly,cutoff)
+#   N = length(gens(parent(poly)))
 
-  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+#   !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
 
-  isFSplit(p,poly) && return 1
+#   isFSplit(p,poly) && return 1
 
-  f = poly
+#   f = poly
 
-  fpminus1 = f^(p-1)
+#   fpminus1 = f^(p-1)
 
-  Δ₁fpminus1 = Δ₁l(p,fpminus1)
-  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+#   Δ₁fpminus1 = Δ₁l(p,fpminus1)
+#   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
-  m = N*(p-1)
-  critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
-  start_vector = lift_to_Int64(vector(fpminus1,m))
-  @time (coefs,degs) = convert_to_gpu_representation(Δ₁fpminus1)
-  println("Δ₁ has $(size(degs,1)) terms")
+#   m = N*(p-1)
+#   critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
+#   start_vector = lift_to_Int64(vector(fpminus1,m))
+#   @time (coefs,degs) = convert_to_gpu_representation(Δ₁fpminus1)
+#   println("Δ₁ has $(size(degs,1)) terms")
 
-  println("creating matrix...")
-  @time M = matrix_of_multiply_then_split(p,coefs,degs,m)
+#   println("creating matrix...")
+#   @time M = matrix_of_multiply_then_split(p,coefs,degs,m)
 
-  #@time M = matrix_of_lin_op(θFstar,m,parent(f))
-  println("matrix finished:")
-  display(M)
+#   #@time M = matrix_of_lin_op(θFstar,m,parent(f))
+#   println("matrix finished:")
+#   display(M)
 
-  nMonomials = length(start_vector)
-  zzs = zeros(parent(start_vector[1]),nMonomials)
+#   nMonomials = length(start_vector)
+#   zzs = zeros(parent(start_vector[1]),nMonomials)
 
-  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
-  # Honestly, just calling the ideals I_n could get confusing IMO
+#   # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+#   # Honestly, just calling the ideals I_n could get confusing IMO
 
-  n = 2
-  # The newest generator in the KTY ideal I_2.
-  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
-  # be concatenating on new generator at each step until the chain terminates.
-  # See Theorem 5.8 in 2204.10076
+#   n = 2
+#   # The newest generator in the KTY ideal I_2.
+#   # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+#   # be concatenating on new generator at each step until the chain terminates.
+#   # See Theorem 5.8 in 2204.10076
 
-  println("trying height $n")
-  @time KTYideal_n_new_gen = M * start_vector
+#   println("trying height $n")
+#   @time KTYideal_n_new_gen = M * start_vector
 
-  while n ≤ cutoff
-    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
-    KTYideal_n_new_gen == zzs && return cutoff + 2 # the chain terminated early, provable infinity
+#   while n ≤ cutoff
+#     #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+#     KTYideal_n_new_gen == zzs && return cutoff + 2 # the chain terminated early, provable infinity
 
-    if KTYideal_n_new_gen[critical_ind] != 0
-      # We are quasi-F split of height n! Yay!!
-      return n
-    end
+#     if KTYideal_n_new_gen[critical_ind] != 0
+#       # We are quasi-F split of height n! Yay!!
+#       return n
+#     end
 
-    n = n + 1
-    println("trying height $n")
-    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-    @time KTYideal_n_new_gen = M * KTYideal_n_new_gen
-  end
+#     n = n + 1
+#     println("trying height $n")
+#     #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+#     @time KTYideal_n_new_gen = M * KTYideal_n_new_gen
+#   end
 
-  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
-end#function
+#   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+# end#function
 
 
 """

@@ -849,128 +849,1915 @@ function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsi
     return result
 end
 
-function matrix_of_multiply_then_split_sortmodp_kronecker2_correct(p,coefs,degs,d)
-    numVars = size(degs,2)
+function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
     mons = DeRham.gen_exp_vec(numVars,d)
-    mons = reduce(vcat,transpose.(mons))
+    mons = reduce(hcat,mons)
 
-    nMons = size(mons,1)
-    nTerms = size(degs,1)
+    nMons = size(mons,2)
 
-    # Everything needs to be encoded with the same key to make the is_relevant() check work
-    maxdeg = p * (d + 1)
+    result = zeros(eltype(coeffs), nMons, nMons)
 
-    # We want to avoid having to compute te same powers of the encoding key every time we call kronecker()
-    kroneckerPregen = zeros(Int, numVars)
-    for i in eachindex(kroneckerPregen)
-        kroneckerPregen[i] = (maxdeg + 1) ^ (i - 1)
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    reverseMons = Dict{UInt,Int}()
+    encodedMons = encode_degs(mons, bits)
+    for i in eachindex(encodedMons)
+        reverseMons[encodedMons[i]] = i
     end
 
-    kron(v) = kronecker_opt(v, numVars, kroneckerPregen)
-    div_kron(v, m) = div_kronecker(v, m, numVars, kroneckerPregen)
-    mod_kron(v, m) = mod_kronecker(v, m, numVars, kroneckerPregen)
-
-    reverseMons = Dict{Int,Int}()
-    encodedMons = zeros(Int, nMons)
-    tempmon = zeros(Int, numVars)
-    for i in axes(mons, 1)
-        for j in eachindex(tempmon)
-            tempmon[j] = mons[i, j]
-        end
-        key = kron(tempmon)
-        encodedMons[i] = key
-        reverseMons[key] = i
-    end
-
-    reverseDegs = Dict{Int,Int}()
-    encodedDegs = zeros(Int, nTerms)
-    tempdeg = zeros(Int, numVars)
-    for i in axes(degs, 1)
-        for j in eachindex(tempdeg)
-            tempdeg[j] = degs[i, j]
-        end
-        key = kron(tempdeg)
-        encodedDegs[i] = key
-        reverseDegs[key] = i
-    end
-  
-    encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
-    encodedDegsModP = map(x -> mod_kron(x, p), encodedDegs)
-  
-    mons_perm = sortperm(encodedMonsModP)
-    degs_perm = sortperm(encodedDegsModP)
-  
-    # we need to traverse both arrays at once
-    # we consider degs to be on the "left"
-    left = true
-  
-    l = 1 # left index
-    r = nMons # right index
-  
-  
-    result = zeros(eltype(coefs),nMons,nMons)
+    weakintegercompositions = [encode_degs(wics(i, numVars) .* p, bits) for i in 0:fld(d, p)]
 
     relevant = kron(fill(p - 1, numVars))
-    while l ≤ nTerms && 1 ≤ r
-        monModP = encodedMonsModP[mons_perm[r]]
-        termModP = encodedDegsModP[degs_perm[l]]
-        cmp = monModP + termModP - relevant
-        if cmp == 0
-            nMatches = 1
-            cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
 
-            while l + nMatches ≤ nTerms && cmpTerm == termModP
-                nMatches += 1
-                if l + nMatches ≤ nTerms
-                    cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
-                end
-            end
-    
+    for term in eachindex(encodedDegs)
+        # initialDeg is the next vector congruent to (p - 1, ... , p - 1)
+        # initialMon is the "foundation" for the relevant monomial; all relevant monomials are generated
+        # from adding WICS to initialMon
+        # howmuchadded is the sum of the elements of initialMon, useful for fast computation of how many
+        # weak integer compositions are needed to add to initialMon to make a relevant monomial.
+        # For example, for the case of numVars = 4, char = 5, and given a term in delta1() with the degree
+        # sequence [21, 19, 18, 22], initialDeg = [24, 19, 19, 24], initialMon = [3, 0, 1, 2], howmuchadded = 6
+        # since we only added 6, we can add 10 more (n * (p - 1) - howmuchadded) = (16 - 6) = 10. We get WICS(10/5, 4) .* 5
+        # to add to initialMon.
+        initialDeg, initialMon, howmuchadded = find_next_pminus1(encodedDegs[term], numVars, bits, p)
+        weaks = divexact(d - howmuchadded, p)
+        # thingtoadd is vector of weak integer compositions that when added to initialMon make a relevant monomial
+        thingstoadd = weakintegercompositions[weaks + 1]
+        for i in eachindex(thingstoadd)
+            mon = initialMon + thingstoadd[i]
+            new_exv = div_kron(initialDeg + thingstoadd[i] - relevant, p)
+            result[reverseMons[new_exv], reverseMons[mon]] = coeffs[term]
+        end
+    end
 
-            cmpMon = encodedMonsModP[mons_perm[r]]
-            # loop through all monomials and process each one
-    
-            while 1 <= r && cmpMon == monModP
-                #mon = @view mons[mons_perm[r],:]
-                mon = encodedMons[mons_perm[r]]
-                for ll = l:(l + nMatches - 1)
-                    term = encodedDegs[degs_perm[ll]]
-                    newTerm = div_kron(mon + term - relevant, p)
-                    newcoefind = reverseDegs[term] 
-                    newcoef = coefs[newcoefind]
-                    row = reverseMons[newTerm]
-                    col = reverseMons[mon]
-                    result[row,col] += newcoef
-                end
-    
-                r -= 1
-                left = true
-                
-                #if 1 ≤ r
-                #    cmpMon = encodedMonsModP[mons_perm[r]]
-                #end
-                # somehow this is erroring for me - Alex
-                # NOTE: it should work if you put the assignment in parens - JJ
-                (1 ≤ r) && (cmpMon = encodedMonsModP[mons_perm[r]])
-            end
-            l += nMatches - 1
-        else
-            if cmp < 0
-                left = true
-            elseif 0 < cmp
-                left = false
-            end
+    return result
+end
 
-            if left
-                l += 1
-                left = false
-            else
-                r -= 1
-                left = true
+function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)
+    result = CUDA.zeros(eltype(coeffs), pregen.nMons, pregen.nMons)
+
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    relevant = kron(fill(p - 1, numVars))
+
+    kernel = @cuda launch = false wics_gpu_kernel(p, coeffs, encodedDegs, numVars, pregen.weakintegercompositions, pregen.lengths, pregen.startindices, pregen.reverseMons, bits, d, div_kron, relevant, result)
+    config = launch_configuration(kernel.fun)
+    threads = min(length(encodedDegs), config.threads)
+    blocks = cld(length(encodedDegs), threads)
+
+    kernel(p, coeffs, encodedDegs, numVars, pregen.weakintegercompositions, pregen.lengths, pregen.startindices, pregen.reverseMons, bits, d, div_kron, relevant, result; threads = threads, blocks = blocks)
+
+    return result
+end
+
+function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result)
+    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+        
+    if idx <= length(coeffs)
+        term = encodedDegs[idx]
+        @inbounds for i in eachindex(encodedMons)
+            if mod_kron(term + encodedMons[i], p) == relevant
+                new_exv = div_kron(term + encodedMons[i] - relevant, p)
+
+                result[reverseMons[new_exv], i] = coeffs[idx]
             end
         end
     end
 
-    result
+    return nothing 
 end
+
+function wics_gpu_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::MyMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
+    term = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if term <= length(encodedDegs)
+        initialDeg, initialMon, howmuchadded = find_next_pminus1(encodedDegs[term], numVars, bits, p)
+
+        weaks = div(d - howmuchadded, p)
+        numthingstoadd = lengths[weaks + 1]
+        wicsstartidx = startindices[weaks + 1]
+        for i in 0:numthingstoadd - 1
+            mon = initialMon + weakintegercompositions[wicsstartidx + i]
+            new_exv = div_kron(initialDeg + weakintegercompositions[wicsstartidx + i] - relevant, p)
+            result[reverseMons[new_exv], reverseMons[mon]] = coeffs[term]
+        end
+    end
+
+    return nothing
+end
+
+function find_next_pminus1(num::T, nvars::Int, bits::Int, p::T) where T<:Number
+    result = zero(T)
+    mask = (one(T) << bits) - one(T)
+    total = zero(T)
+    added = zero(T)
+    for i in 0:(nvars - 1)
+        element = (num >> (bits * i)) & mask
+        adjust = p - one(T) - (element % p)
+        total += adjust
+        added += adjust << (bits * i)
+        result += (element + adjust) << (bits * i)
+    end
+    return result, added, total
+end
+
+function wics(n, k)
+    x = fill(0, k)
+    x[1] = n
+    result = zeros(Int, k, binomial(n + k - 1, k - 1))
+    idx = 1
+    while true
+        view(result, :, idx) .= x
+        idx += 1
+        v = x[end]
+        if n == v
+            break
+        end
+        x[end] = 0
+        j = k - 1
+        while x[j] == 0
+            j -= 1
+        end
+        x[j] -= 1
+        x[j + 1] = 1 + v
+    end
+
+    return result
+end
+
+"""
+Lifts a matrix with entries in GF(p) to ZZ and converts the entries
+to Julia integers
+"""
+lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
+
+function encode_degs(degs, bits)
+    result = zeros(UInt64, size(degs, 2))
+    for i in eachindex(result)
+        result[i] = base2kron(view(degs, :, i), bits)
+    end
+
+    return result
+end
+
+function base2kron(vec, bits)
+    result = zero(UInt64)
+    for i in eachindex(vec)
+        result += vec[i] << (bits * (length(vec) - i))
+    end
+    return result
+end
+
+function base2divkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
+    result = zero(T)
+    mask = (one(T) << bits) - one(T)
+    for i in 0:(numVars - 1)
+        element = (num >> (bits * i)) & mask
+        divided = element ÷ m
+        result += divided << (bits * i)
+    end
+    return result
+end
+
+function base2modkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
+    result = zero(T)
+    mask = (one(T) << bits) - one(T)
+    for i in 0:(numVars - 1)
+        element = (num >> (bits * i)) & mask
+        modded = element % m
+        result += modded << (bits * i)
+    end
+    return result
+end
+
+# """
+# Computes the matrix of the 
+# linear operator of multiplying
+# by the polynomnial f with coefficients
+# coefs and degrees degs and then applying 
+# polynomial_frobenius_generator
+# on the vector space of homogeneous polynomials
+# of degree d
+
+# This actually does a double for loop, thus 
+# it'll have slower time complexity than the
+# merge-based algorithms below which take
+# advantage of the order.
+
+# coefs - vector of coefficients
+# degs - 2d array of exponent vectors
+# """
+# function matrix_of_multiply_then_split(p,coefs,degs,d)
+#   n = size(degs,2)
+#   mons = DeRham.DeRham.gen_exp_vec(n,d)
+#   mons = reduce(vcat,transpose.(mons))
+#   nMons = size(mons,1)
+
+#   reverseDict = Dict(mons[i] => i for i in 1:length(mons))
+
+#   result = zeros(nMons,nMons)
+  
+#   #p_minus_ones = fill(n,p-1)
+#   #prod_exp_vec_mod_p = zeros(n)
+
+#   for i in 1:nMons
+#     # compute column i
+#     for tInd in 1:size(degs,1)
+
+#       relevant = true
+#       for k in 1:n
+#         #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+#         if degs[tInd,k] + mons[i,k] % p != p-1
+#           relevant = false
+#         end
+#       end
+
+#       if relevant
+#       #if all((degs[tInd,:] .+ mons[i]) .% p .== fill(n,p-1))
+#         # this is a relevant term
+#         exv_in_prod = degs[tInd,:] .+ mons[i,:]
+#         new_exv = divexact.(exv_in_prod .- fill(n,p-1),p)
+#         row = reverseDict[new_exv]
+#         result[row,i] += coefs[tInd]
+
+#       end
+#     end
+#   end
+
+#   result
+# end
+
+
+# """
+# given two exponent vectors degs1 and degs2, 
+# will the term corresponding to them survive
+# the frobenius root? 
+
+# In other words, to these vectors sum to 
+# fill(p-1,n)?
+
+# degs1 and degs2 are assumed to be reduced mod p already
+
+# This function is meant to be used in tight inner loops,
+# so if there's any way to make it faster that would be good.
+
+# """
+# function terms_are_relevant(p,degs1,degs2)
+#   n = length(degs1)
+  
+#   #println("Testing $degs1 vs. $degs2 mod $p")
+#   relevant = true
+#   for k in 1:n
+
+#     #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+    
+#     #println("Coord $k: Does $(degs1[k]) == $(degs2[k]) ???")
+#     if degs1[k] + degs2[k] != p-1
+#       #println("It does not! Test fail!")
+#       relevant = false
+#     end
+#   end
+#   #println("Tested to $relevant")
+
+#   relevant
+# end
+
+# #"""
+# #Finds the matrix of multiplying by the polynomial with 
+# #coefficients coefs and degrees degs
+# #
+# #Performance TODO list:
+# # * try to ensure access inside the loops is regular (this will be important for gpu version)
+# # * In terms of allocations, the bottleneck seems to be allocating integers,
+# #     and this seems to have to do with the way the dictionaries are used.
+# #     Probably best to reengineer this in a more performant way.
+# # * Is it best to make the inner loop into it's own function? 
+# #     Should try this out and see if Julia speeds up
+# #
+# #For now this part isn't the bottleneck anymore, but I'll work on it later
+# #
+# #This version uses Static vectors
+# #"""
+# #function matrix_of_multiply_then_split_sortmodp(p,coefs,degs,d)
+# #  n = size(degs,2)
+# #  mons = DeRham.DeRham.gen_exp_vec(n,d)
+# #  #mons = reduce(vcat,transpose.(mons))
+# #
+# #  nMons = length(mons)
+# #  nTerms = size(degs,1)
+# #    
+# #  # Preprocessing
+# #  mons = SVector{n}.(mons)
+# #  degs = SVector{n}.(eachrow(degs))
+# #
+# #  #println(typeof(degs))
+# #  #println(typeof(mons))
+# #  # convert to static array
+# #  
+# #  #degs = SMatrix{nTerms,n}(degs)
+# #  #mons = SMatrix{nMons,n}(mons)
+# #
+# #  # calculate going from exponent vector to index
+# #  reverseMons = Dict(mons[i] => i for i in 1:size(mons,1))
+# #  reverseDegs = Dict(degs[i] => i for i in 1:size(degs,1))
+# #
+# #  
+# #  degs_modp = map(v -> v .% p, degs)
+# #  mons_modp = map(v -> v .% p, mons)
+# #
+# #  degs_perm = sortperm(degs_modp)
+# #  mons_perm = sortperm(mons_modp)
+# #
+# #  # this uses a view to imptove performance later
+# #  #degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms))
+# #  #mons_perm = sortperm(view.(Ref(mons_modp),1:nMons))
+# #  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+# #  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+# #  #
+# #  #println("mons: $mons")
+# #  #println("mons sorted: $(mons[mons_perm,:])")
+# #  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+# #  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+# #
+# #  # we need to traverse both arrays at once
+# #  # we consider degs to be on the "left"
+# #  left = true
+# #
+# #  l = 1 # left index
+# #  r = nMons # right index
+# #
+# #  result = zeros(eltype(coefs),nMons,nMons)
+# #
+# #  # used in the loop, but allocate here once
+# #  newterm = zeros(eltype(degs[1]),n)
+# #
+# #  # Note: preallocating these things doesn't seem to change performance
+# #  #row = 0
+# #  #col = 0
+# #  #newcoefind = 0
+# #  #newcoef = zero(eltype(coefs))
+# #
+# #  while l ≤ nTerms && 1 ≤ r
+# #    mon_modp = mons_modp[mons_perm[r]]
+# #    term_modp = degs_modp[degs_perm[l]]
+# #    if terms_are_relevant(p,mon_modp,term_modp)
+# #      # we have a match!
+# #      # println("Found match: ($l,$r)")
+# #     
+# #
+# #      # Short preprocessing step: how many terms in degs have this exponent vector?
+# #      nMatches = 1
+# #      while l + nMatches ≤ nTerms && degs_modp[degs_perm[l+nMatches]] == term_modp
+# #        nMatches = nMatches + 1
+# #      end
+# #
+# #      # loop through all monomials and process each one
+# #      while 1 ≤ r && mons_modp[mons_perm[r]][:] == mon_modp
+# #
+# #        mon = mons[mons_perm[r]]
+# #        for ll = l:(l + nMatches - 1)
+# #          term = degs[degs_perm[ll]]
+# #          #print("found match ($ll,$r), ")
+# #          #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+# #          #print("term $term multiplies with monomial $mon, ")
+# #          
+# #          # multiply then split the terms
+# #          #newterm = div.(mon .+ term .- fill(p-1,n), p)
+# #          for i in 1:n
+# #              newterm[i] = div(mon[i] + term[i] - (p-1), p)
+# #          end
+# #
+# #          newcoefind = reverseDegs[term] 
+# #          newcoef = coefs[newcoefind]
+# #          row = reverseMons[newterm]
+# #          col = reverseMons[mon]
+# #          #println("setting matrix element ($row,$col)")
+# #          result[row,col] += newcoef
+# #        end
+# #
+# #        r = r - 1
+# #        left = true
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #      end
+# #
+# #      l = l + nMatches - 1
+# #    else
+# #      if left
+# #        l = l + 1
+# #        left = false
+# #      else
+# #        r = r - 1
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        left = true
+# #      end
+# #    end
+# #  end
+# #
+# #  result
+# #end
+# #
+# #
+# #"""
+# #Finds the matrix of multiplying by the polynomial with 
+# #coefficients coefs and degrees degs
+# #
+# #Performance TODO list:
+# # * try to ensure access inside the loops is regular (this will be important for gpu version)
+# # * In terms of allocations, the bottleneck seems to be allocating integers,
+# #     and this seems to have to do with the way the dictionaries are used.
+# #     Probably best to reengineer this in a more performant way.
+# # * Is it best to make the inner loop into it's own function? 
+# #     Should try this out and see if Julia speeds up
+# #
+# #For now this part isn't the bottleneck anymore, but I'll work on it later
+# #
+# #This version uses tuples
+# #"""
+# #function matrix_of_multiply_then_split_sortmodp_tuple(p,coefs,degs,d)
+# #  n = size(degs,2)
+# #  mons = DeRham.DeRham.gen_exp_vec(n,d)
+# #  #mons = reduce(vcat,transpose.(mons))
+# #
+# #  nMons = length(mons)
+# #  nTerms = size(degs,1)
+# #    
+# #  # Preprocessing
+# #  mons = Tuple.(mons)
+# #  degs = Tuple.(eachrow(degs))
+# #
+# #  #println(typeof(degs))
+# #  #println(typeof(mons))
+# #  # convert to static array
+# #  
+# #  #degs = SMatrix{nTerms,n}(degs)
+# #  #mons = SMatrix{nMons,n}(mons)
+# #
+# #  # calculate going from exponent vector to index
+# #  reverseMons = Dict(mons[i] => i for i in 1:size(mons,1))
+# #  reverseDegs = Dict(degs[i] => i for i in 1:size(degs,1))
+# #
+# #  
+# #  degs_modp = map(v -> v .% p, degs)
+# #  mons_modp = map(v -> v .% p, mons)
+# #
+# #  degs_perm = sortperm(degs_modp)
+# #  mons_perm = sortperm(mons_modp)
+# #
+# #  # this uses a view to imptove performance later
+# #  #degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms))
+# #  #mons_perm = sortperm(view.(Ref(mons_modp),1:nMons))
+# #  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+# #  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+# #  #
+# #  #println("mons: $mons")
+# #  #println("mons sorted: $(mons[mons_perm,:])")
+# #  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+# #  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+# #
+# #  # we need to traverse both arrays at once
+# #  # we consider degs to be on the "left"
+# #  left = true
+# #
+# #  l = 1 # left index
+# #  r = nMons # right index
+# #
+# #  result = zeros(eltype(coefs),nMons,nMons)
+# #
+# #  # used in the loop, but allocate here once
+# #  newterm = zeros(eltype(degs[1]),n)
+# #
+# #  # Note: preallocating these things doesn't seem to change performance
+# #  #row = 0
+# #  #col = 0
+# #  #newcoefind = 0
+# #  #newcoef = zero(eltype(coefs))
+# #
+# #  while l ≤ nTerms && 1 ≤ r
+# #    mon_modp = mons_modp[mons_perm[r]]
+# #    term_modp = degs_modp[degs_perm[l]]
+# #    if terms_are_relevant(p,mon_modp,term_modp)
+# #      # we have a match!
+# #      # println("Found match: ($l,$r)")
+# #     
+# #
+# #      # Short preprocessing step: how many terms in degs have this exponent vector?
+# #      nMatches = 1
+# #      while l + nMatches ≤ nTerms && degs_modp[degs_perm[l+nMatches]] == term_modp
+# #        nMatches = nMatches + 1
+# #      end
+# #
+# #      # loop through all monomials and process each one
+# #      while 1 ≤ r && mons_modp[mons_perm[r]][:] == mon_modp
+# #
+# #        mon = mons[mons_perm[r]]
+# #        for ll = l:(l + nMatches - 1)
+# #          term = degs[degs_perm[ll]]
+# #          #print("found match ($ll,$r), ")
+# #          #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+# #          #print("term $term multiplies with monomial $mon, ")
+# #          
+# #          # multiply then split the terms
+# #          #newterm = tuple((@. div(mon + term - (fill(p-1,n),)), p))
+# #          for i in 1:n
+# #              newterm[i] = div(mon[i] + term[i] - (p-1), p)
+# #          end
+# #
+# #          newcoefind = reverseDegs[term] 
+# #          newcoef = coefs[newcoefind]
+# #          row = reverseMons[tuple(newterm...)]
+# #          col = reverseMons[mon]
+# #          #println("setting matrix element ($row,$col)")
+# #          result[row,col] += newcoef
+# #        end
+# #
+# #        r = r - 1
+# #        left = true
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #      end
+# #
+# #      l = l + nMatches - 1
+# #    else
+# #      if left
+# #        l = l + 1
+# #        left = false
+# #      else
+# #        r = r - 1
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        left = true
+# #      end
+# #    end
+# #  end
+# #
+# #  result
+# #end
+
+# """
+# Finds the matrix of multiplying by the polynomial with 
+# coefficients coefs and degrees degs
+
+# Performance TODO list:
+#  * try to ensure access inside the loops is regular (this will be important for gpu version)
+#  * In terms of allocations, the bottleneck seems to be allocating integers,
+#      and this seems to have to do with the way the dictionaries are used.
+#      Probably best to reengineer this in a more performant way.
+#  * Is it best to make the inner loop into it's own function? 
+#      Should try this out and see if Julia speeds up
+
+# For now this part isn't the bottleneck anymore, but I'll work on it later
+
+# This version uses a dictionary of vectors, which allocates when it hashes.
+# That's causing the majority of the performance issues.
+
+# this is the OG version, can use it for testing
+# """
+# function matrix_of_multiply_then_split_sortmodp_dict(p,coefs,degs,d)
+#   n = size(degs,2)
+#   mons = DeRham.DeRham.gen_exp_vec(n,d)
+#   mons = reduce(vcat,transpose.(mons))
+
+#   nMons = size(mons,1)
+#   nTerms = size(degs,1)
+    
+#   # Preprocessing
+#   reverseMons = Dict(mons[i,:] => i for i in 1:size(mons,1))
+#   reverseDegs = Dict(degs[i,:] => i for i in 1:size(degs,1))
+
+# #  println(reverseDegs[[24,24,24,8]])
+
+#   #println(reverseMons)
+
+#   degs_modp = degs .% p
+#   mons_modp = mons .% p
+
+#   # this uses a view to imptove performance later
+#   degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+#   mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+#   #degs_perm = sortperm(collect(eachrow(degs_modp)))
+#   #mons_perm = sortperm(collect(eachrow(mons_modp)))
+
+#   #println("mons: $mons")
+#   #println("mons sorted: $(mons[mons_perm,:])")
+#   #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+#   #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+
+#   # we need to traverse both arrays at once
+#   # we consider degs to be on the "left"
+#   left = true
+
+#   l = 1 # left index
+#   r = nMons # right index
+
+#   result = zeros(eltype(coefs),nMons,nMons)
+
+#   # used in the loop, but allocate here once
+#   newterm = zeros(eltype(degs),n)
+
+#   # Note: preallocating these things doesn't seem to change performance
+#   #row = 0
+#   #col = 0
+#   #newcoefind = 0
+#   #newcoef = zero(eltype(coefs))
+
+#   while l ≤ nTerms && 1 ≤ r
+#     mon_modp = @view mons_modp[mons_perm[r],:]
+#     term_modp = @view degs_modp[degs_perm[l],:]
+#     if terms_are_relevant(p,mon_modp,term_modp)
+#       # we have a match!
+     
+
+#       # Short preprocessing step: how many terms in degs have this exponent vector?
+#       nMatches = 1
+#       while l + nMatches ≤ nTerms && @view(degs_modp[degs_perm[l+nMatches],:]) == term_modp
+#         nMatches = nMatches + 1
+#       end
+
+#       # loop through all monomials and process each one
+#       while 1 ≤ r && @view(mons_modp[mons_perm[r],:]) == mon_modp
+
+#         mon = @view mons[mons_perm[r],:]
+#         for ll = l:(l + nMatches - 1)
+#           term = @view degs[degs_perm[ll],:]
+#           #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+#           #print("term $term multiplies with monomial $mon, ")
+          
+#           # multiply then split the terms
+#           #newterm = div.(mon .+ term .- fill(p-1,n), p)
+#           for i in 1:n
+#               newterm[i] = div(mon[i] + term[i] - (p-1), p)
+#           end
+
+#           newcoefind = reverseDegs[term] 
+#           newcoef = coefs[newcoefind]
+#           row = reverseMons[newterm]
+#           col = reverseMons[mon]
+#           #if row == 565
+#           #  print("found match ($ll,$r), ")
+#           #  print("coef ind $newcoefind, from term $term,")
+#           #  println("matrix elt ($row,$col)")
+#           #end
+#           result[row,col] += newcoef
+#         end
+
+#         r = r - 1
+#         left = true
+#         #0 < r && println("$r, true monomial: $(mons_perm[r])")
+#       end
+
+#       l = l + nMatches - 1
+#     else
+#       if left
+#         l = l + 1
+#         left = false
+#       else
+#         r = r - 1
+#         #0 < r && println("$r, true monomial: $(mons_perm[r])")
+#         left = true
+#       end
+#     end
+#   end
+
+#   result
+# end
+
+# """
+# given two exponent vectors degs1 and degs2, 
+# will the term corresponding to them survive
+# the frobenius root? 
+
+# Also returns whether the sum of the terms is less than or greater
+# (p-1,...,p-1) in the lexographical order
+
+# In other words, to these vectors sum to 
+# fill(p-1,n)?
+
+# degs1 and degs2 are assumed to be reduced mod p already
+
+# This function is meant to be used in tight inner loops,
+# so if there's any way to make it faster that would be good.
+
+# """
+# function terms_are_relevant_withcmp(p,degs1,degs2)
+#   n = length(degs1)
+  
+#   #println("Testing $degs1 vs. $degs2 mod $p")
+#   relevant = true
+#   lessthan = false
+#   for k in 1:n
+
+#     #prod_exp_vec_mod_p[k] = degs[tInd,k] + mons[i][k] % p
+    
+#     #println("Coord $k: Does $(degs1[k]) == $(degs2[k]) ???")
+#     cmp = (p-1) - (degs1[k] + degs2[k])
+#     if cmp < 0
+#       #println("It does not! Test fail!")
+#       relevant = false
+#       lessthan = false
+#       break
+#     elseif 0 < cmp
+#       relevant = false
+#       lessthan = true
+#       break
+#     end
+#   end
+#   #println("Tested to $relevant")
+
+#   (relevant,lessthan)
+# end
+
+
+
+# """
+# Finds the matrix of multiplying by the polynomial with 
+# coefficients coefs and degrees degs
+
+# Performance TODO list:
+#  * try to ensure access inside the loops is regular (this will be important for gpu version)
+#  * In terms of allocations, the bottleneck seems to be allocating integers,
+#      and this seems to have to do with the way the dictionaries are used.
+#      Probably best to reengineer this in a more performant way.
+#  * Is it best to make the inner loop into it's own function? 
+#      Should try this out and see if Julia speeds up
+
+# For now this part isn't the bottleneck anymore, but I'll work on it later
+
+# This version uses a dictionary of vectors, which allocates when it hashes.
+# That's causing the majority of the performance issues.
+
+# """
+# function matrix_of_multiply_then_split_sortmodp_dict_correct(p,coefs,degs,d)
+#   n = size(degs,2)
+#   mons = DeRham.DeRham.gen_exp_vec(n,d)
+#   mons = reduce(vcat,transpose.(mons))
+
+#   nMons = size(mons,1)
+#   nTerms = size(degs,1)
+    
+#   # Preprocessing
+#   reverseMons = Dict(mons[i,:] => i for i in 1:size(mons,1))
+#   reverseDegs = Dict(degs[i,:] => i for i in 1:size(degs,1))
+
+# #  println(reverseDegs[[24,24,24,8]])
+
+#   #println(reverseMons)
+
+#   degs_modp = degs .% p
+#   mons_modp = mons .% p
+
+#   # this uses a view to imptove performance later
+#   degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+#   mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+#   #degs_perm = sortperm(collect(eachrow(degs_modp)))
+#   #mons_perm = sortperm(collect(eachrow(mons_modp)))
+
+#   #println("mons: $mons")
+#   #println("mons sorted: $(mons[mons_perm,:])")
+#   #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+#   #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+
+#   # we need to traverse both arrays at once
+#   # we consider degs to be on the "left"
+#   left = true
+
+#   l = 1 # left index
+#   r = nMons # right index
+
+#   result = zeros(eltype(coefs),nMons,nMons)
+
+#   # used in the loop, but allocate here once
+#   newterm = zeros(eltype(degs),n)
+
+#   # Note: preallocating these things doesn't seem to change performance
+#   #row = 0
+#   #col = 0
+#   #newcoefind = 0
+#   #newcoef = zero(eltype(coefs))
+
+#   while l ≤ nTerms && 1 ≤ r
+#     mon_modp = @view mons_modp[mons_perm[r],:]
+#     term_modp = @view degs_modp[degs_perm[l],:]
+#     (relevant,go_left_next) = terms_are_relevant_withcmp(p,mon_modp,term_modp)
+#     if relevant
+#       # we have a match!
+     
+
+#       # Short preprocessing step: how many terms in degs have this exponent vector?
+#       nMatches = 1
+#       while l + nMatches ≤ nTerms && @view(degs_modp[degs_perm[l+nMatches],:]) == term_modp
+#         nMatches = nMatches + 1
+#       end
+
+#       # loop through all monomials and process each one
+#       while 1 ≤ r && @view(mons_modp[mons_perm[r],:]) == mon_modp
+
+#         mon = @view mons[mons_perm[r],:]
+#         for ll = l:(l + nMatches - 1)
+#           term = @view degs[degs_perm[ll],:]
+#           #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+#           #print("term $term multiplies with monomial $mon, ")
+          
+#           # multiply then split the terms
+#           #newterm = div.(mon .+ term .- fill(p-1,n), p)
+#           for i in 1:n
+#               newterm[i] = div(mon[i] + term[i] - (p-1), p)
+#           end
+
+#           newcoefind = reverseDegs[term] 
+#           newcoef = coefs[newcoefind]
+#           row = reverseMons[newterm]
+#           col = reverseMons[mon]
+#           #if row == 565
+#           #  print("found match ($ll,$r), ")
+#           #  print("coef ind $newcoefind, from term $term,")
+#           #  println("matrix elt ($row,$col)")
+#           #end
+#           result[row,col] += newcoef
+#         end
+
+#         r = r - 1
+#         left = true
+#         #0 < r && println("$r, true monomial: $(mons_perm[r])")
+#       end
+
+#       l = l + nMatches - 1
+#     else
+#       if go_left_next 
+#         l = l + 1
+#         left = false
+#       else
+#         r = r - 1
+#         #0 < r && println("$r, true monomial: $(mons_perm[r])")
+#         left = true
+#       end
+#     end
+#   end
+
+#   result
+# end
+
+# function kronecker(vec,d,n)#,returntype=Int64)
+#   s = 0#zero(returntype)
+#   #println("$n")
+#   for i = 1:n
+#     s = s + vec[i]*(d+1)^i
+#   end
+
+#   s
+# end
+
+# """
+# we don't actually need this right now
+# """
+# function undo_kronecker(p,d,vec)
+
+# end
+
+# """
+# Finds the matrix of multiplying by the polynomial with 
+# coefficients coefs and degrees degs
+
+# Performance TODO list:
+#  * try to ensure access inside the loops is regular (this will be important for gpu version)
+#  * In terms of allocations, the bottleneck seems to be allocating integers,
+#      and this seems to have to do with the way the dictionaries are used.
+#      Probably best to reengineer this in a more performant way.
+#  * Is it best to make the inner loop into it's own function? 
+#      Should try this out and see if Julia speeds up
+
+# For now this part isn't the bottleneck anymore, but I'll work on it later
+
+# This one uses Kronecker substitution
+# """
+# function matrix_of_multiply_then_split_sortmodp_kronecker(p,coefs,degs,d)
+#   n = size(degs,2)
+#   mons = DeRham.DeRham.gen_exp_vec(n,d)
+#   mons = reduce(vcat,transpose.(mons))
+#   #elementtype = eltype(degs)
+#   #TODO: perhaps if mons and degs are HybridArrays from HybridArrays.jl
+#   #  then we won't need to do all of the crazy tricks instead of slicing
+
+#   nMons = size(mons,1)
+#   nTerms = size(degs,1)
+#   #println("nMons: $nMons")
+#   #println("nTerms: $nTerms")
+    
+#   monkron(v) = kronecker(v,d,n)
+#   degkron(v) = kronecker(v,p*d,n)
+
+#   # the following is processing it as an array of pairs instead of making the paris be the keys and values
+#   # Preprocessing
+#   reverseMons = Dict{Int,Int}()
+#   tempmon = zeros(eltype(mons),n)
+#   for i in 1:size(mons,1)
+#     for j = 1:n # do a for loop so we don't allocate
+#       tempmon[j] = mons[i,j]
+#     end
+#     key = monkron(tempmon)
+#     reverseMons[key] = i
+#   end
+
+#   reverseDegs = Dict{Int,Int}()
+#   tempdeg = zeros(eltype(degs),n)
+#   for i in 1:size(degs,1)
+#     for j = 1:n # do a for loop so we don't allocate
+#       tempdeg[j] = degs[i,j]
+#     end
+#     key = degkron(tempdeg)
+#     reverseDegs[key] = i
+#   end
+#   #reverseMons = Dict(monkron(mons[i,:]) => i for i in 1:size(mons,1))
+#   #reverseDegs = Dict(degkron(degs[i,:]) => i for i in 1:size(degs,1))
+#   # allocation from the above line will eventually be a bottleneck
+#   # so we replace with for-loop-based code that does not slice
+
+#   #jprintln(typeof(reverseMons))
+#   ## DID NOT REPRODUCE
+#   ##
+#   #iii = 1002320
+# # # mymon = mons[10,:]
+#   ##kmymon = monkron(mymon)
+#   #@time b = reverseMons[iii]
+#   #println(b)
+#   #error() 
+
+#   degs_modp = degs .% p
+#   mons_modp = mons .% p
+
+#   # this uses a view to imptove performance later
+#   degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+#   mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+#   #degs_perm = sortperm(collect(eachrow(degs_modp)))
+#   #mons_perm = sortperm(collect(eachrow(mons_modp)))
+
+#   #println("mons: $mons")
+#   #println("mons sorted: $(mons[mons_perm,:])")
+#   #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+#   #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+
+#   # we need to traverse both arrays at once
+#   # we consider degs to be on the "left"
+#   left = true
+
+#   l = 1 # left index
+#   r = nMons # right index
+
+#   # PRE-ALLOCATION
+
+#   result = zeros(eltype(coefs),nMons,nMons)
+
+#   # used in the loop, but allocate here once
+#   newterm = zeros(eltype(degs),n)
+
+#   # Note: preallocating these things doesn't seem to change performance
+#   #row = Ref{Int64}(0)
+#   #col = Ref{Int64}(0)
+#   #newcoefind = 0
+#   #newcoef = zero(eltype(coefs))
+  
+#   # this function is meant to be inlined
+#   function setslice!(target,source,ind)
+#     for i = 1:n
+#       target[i] = source[ind,i]
+#     end
+#   end
+
+#   mon_modp = zeros(eltype(degs),n)
+#   term_modp = zeros(eltype(degs),n)
+#   cmp_term = zeros(eltype(degs),n)
+#   cmp_mon = zeros(eltype(degs),n)
+#   term = zeros(eltype(degs),n)
+#   mon = zeros(eltype(degs),n)
+
+#   while l ≤ nTerms && 1 ≤ r
+#     #mon_modp = @view mons_modp[mons_perm[r],:]
+#     setslice!(mon_modp,mons_modp,mons_perm[r])
+#     #if mon_modp == [0,1,1,0] || mon_modp == [0,1,2,2]
+#     #  println("found problem: ($l,$r), $mon_modp")
+#     #end
+
+#     #if 41 ≤ r && r ≤ 50
+#     #  println("Found r that should be relevant: $r")
+#     #end
+#     #term_modp = @view degs_modp[degs_perm[l],:]
+#     setslice!(term_modp,degs_modp,degs_perm[l])
+#     if terms_are_relevant(p,mon_modp,term_modp)
+#       # we have a match!
+
+#       # Short preprocessing step: how many terms in degs have this exponent vector?
+#       nMatches = 1
+#       #cmp_term = @view(degs_modp[degs_perm[l+nMatches],:])
+#       l + nMatches ≤ nTerms && setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+#       while l + nMatches ≤ nTerms && cmp_term == term_modp
+#         nMatches = nMatches + 1
+#         l + nMatches ≤ nTerms && setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+#       end
+
+#       # loop through all monomials and process each one
+
+#       #cmp_term = @view(mons_modp[mons_perm[r],:])
+#       setslice!(cmp_mon,mons_modp,mons_perm[r])
+
+#       while 1 ≤ r && cmp_mon == mon_modp
+#         #if 41 ≤ r && r ≤ 50
+#         #  println("Found r that should be relevant in inner while: $r")
+#         #end
+
+#         #mon = @view mons[mons_perm[r],:]
+#         setslice!(mon,mons,mons_perm[r])
+#         for ll = l:(l + nMatches - 1)
+#             #term = @view degs[degs_perm[ll],:]
+#             setslice!(term,degs,degs_perm[ll])
+
+#             #print("found match ($ll,$r), ")
+#             #print("accessing at ($(degs_perm[ll]),$(degs_perm[r])), ")
+#             #println("term $term, monomial $mon, ")
+            
+#             # multiply then split the terms
+#             #newterm = div.(mon .+ term .- fill(p-1,n), p)
+#             for i in 1:n
+#                 newterm[i] = div(mon[i] + term[i] - (p-1), p)
+#             end
+
+#             #println("kterm")
+#             kterm = degkron(term)
+#             #println((kterm))
+#             #println("newcoefind")
+#             newcoefind = reverseDegs[kterm] 
+#             #println(typeof(newcoefind))
+#             newcoef = coefs[newcoefind]
+
+#             #println("knewterm")
+#             knewterm = monkron(newterm)
+#             #println((knewterm))
+#             #println("row")
+#             row = reverseMons[knewterm]
+#             #println(typeof(row))
+#             #println("kmon")
+#             kmon = monkron(mon)
+#             #println(typeof(kmon))
+#             #println("col")
+#             col = reverseMons[kmon]
+#             #println(typeof(col))
+#             #println("setting matrix element ($row,$col)")
+#             result[row,col] += newcoef
+#             #error()
+#         end
+
+#         r = r - 1
+#         #println("r: $r")
+#         left = true
+#         #0 < r && println("$r, true monomial: $(mons_perm[r])")
+#         1 ≤ r && setslice!(cmp_mon,mons_modp,mons_perm[r])
+#       end
+
+#       l = l + nMatches - 1
+#       #println("l: $l")
+#     else
+#       if left
+#         l = l + 1
+#         #println("l: $l")
+#         left = false
+#       else
+#         r = r - 1
+#         #println("r: $r")
+#         #0 < r && println("$r, true monomial: $(mons_perm[r])")
+#         left = true
+#       end
+#     end
+#   end
+
+#   result
+# end
+
+# #using Dictionaries
+# #
+# #"""
+# #Finds the matrix of multiplying by the polynomial with 
+# #coefficients coefs and degrees degs
+# #
+# #Performance TODO list:
+# # * try to ensure access inside the loops is regular (this will be important for gpu version)
+# # * In terms of allocations, the bottleneck seems to be allocating integers,
+# #     and this seems to have to do with the way the dictionaries are used.
+# #     Probably best to reengineer this in a more performant way.
+# # * Is it best to make the inner loop into it's own function? 
+# #     Should try this out and see if Julia speeds up
+# #
+# #For now this part isn't the bottleneck anymore, but I'll work on it later
+# #
+# #This one uses Kronecker substitution
+# #"""
+# #function matrix_of_multiply_then_split_sortmodp_kronecker_dictionary(p,coefs,degs,d)
+# #  n = size(degs,2)
+# #  mons = DeRham.DeRham.gen_exp_vec(n,d)
+# #  mons = reduce(vcat,transpose.(mons))
+# #  #elementtype = eltype(degs)
+# #
+# #  nMons = size(mons,1)
+# #  nTerms = size(degs,1)
+# #    
+# #  monkron(v) = kronecker(v,d,n)
+# #  degkron(v) = kronecker(v,p*d,n)
+# #
+# #  # the following is processing it as an array of pairs instead of making the paris be the keys and values
+# #
+# #  # Preprocessing
+# #  reverseMons = Dictionary{Int,Int}()
+# #  tempmon = zeros(eltype(mons),n)
+# #  for i in 1:size(mons,1)
+# #    for j = 1:n # do a for loop so we don't allocate
+# #      tempmon[j] = mons[i,j]
+# #    end
+# #    key = monkron(tempmon)
+# #    insert!(reverseMons,key,i)
+# #  end
+# #
+# #  reverseDegs = Dictionary{Int,Int}()
+# #  tempdeg = zeros(eltype(degs),n)
+# #  for i in 1:size(degs,1)
+# #    for j = 1:n # do a for loop so we don't allocate
+# #      tempdeg[j] = degs[i,j]
+# #    end
+# #    key = degkron(tempdeg)
+# #    insert!(reverseDegs,key,i)
+# #  end
+# #  #reverseMons = Dict(monkron(mons[i,:]) => i for i in 1:size(mons,1))
+# #  #reverseDegs = Dict(degkron(degs[i,:]) => i for i in 1:size(degs,1))
+# #  #TODO: allocation from the above line will eventually be a bottleneck
+# #  #      please replace with for-loop-based code that does not slice
+# #
+# #  #println(typeof(reverseMons))
+# #  ## DID NOT REPRODUCE
+# #  ##
+# #  #iii = 1002320
+# ## # mymon = mons[10,:]
+# #  ##kmymon = monkron(mymon)
+# #  #@time b = reverseMons[iii]
+# #  #println(b)
+# #  #error() 
+# #
+# #  degs_modp = degs .% p
+# #  mons_modp = mons .% p
+# #
+# #  # this uses a view to imptove performance later
+# #  degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+# #  mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+# #  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+# #  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+# #
+# #  #println("mons: $mons")
+# #  #println("mons sorted: $(mons[mons_perm,:])")
+# #  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+# #  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+# #
+# #  # we need to traverse both arrays at once
+# #  # we consider degs to be on the "left"
+# #  left = true
+# #
+# #  l = 1 # left index
+# #  r = nMons # right index
+# #
+# #  # PRE-ALLOCATION
+# #
+# #  result = zeros(eltype(coefs),nMons,nMons)
+# #
+# #  # used in the loop, but allocate here once
+# #  newterm = zeros(eltype(degs),n)
+# #
+# #  # Note: preallocating these things doesn't seem to change performance
+# #  #row = Ref{Int64}(0)
+# #  #col = Ref{Int64}(0)
+# #  #newcoefind = 0
+# #  #newcoef = zero(eltype(coefs))
+# #  
+# #  # this function is meant to be inlined
+# #  function setslice!(target,source,ind)
+# #    for i = 1:n
+# #      target[i] = source[ind,i]
+# #    end
+# #  end
+# #
+# #  mon_modp = zeros(eltype(degs),n)
+# #  term_modp = zeros(eltype(degs),n)
+# #  cmp_term = zeros(eltype(degs),n)
+# #  cmp_mon = zeros(eltype(degs),n)
+# #  term = zeros(eltype(degs),n)
+# #  mon = zeros(eltype(degs),n)
+# #
+# #  while l ≤ nTerms && 1 ≤ r
+# #    #mon_modp = @view mons_modp[mons_perm[r],:]
+# #    setslice!(mon_modp,mons_modp,mons_perm[r])
+# #    #term_modp = @view degs_modp[degs_perm[l],:]
+# #    setslice!(term_modp,degs_modp,degs_perm[l])
+# #    if terms_are_relevant(p,mon_modp,term_modp)
+# #      # we have a match!
+# #
+# #      # Short preprocessing step: how many terms in degs have this exponent vector?
+# #      nMatches = 1
+# #      #cmp_term = @view(degs_modp[degs_perm[l+nMatches],:])
+# #      setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+# #      while l + nMatches ≤ nTerms && cmp_term == term_modp
+# #        nMatches = nMatches + 1
+# #        l + nMatches ≤ nTerms && setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+# #      end
+# #
+# #      # loop through all monomials and process each one
+# #
+# #      #cmp_term = @view(mons_modp[mons_perm[r],:])
+# #      setslice!(cmp_mon,mons_modp,mons_perm[r])
+# #
+# #      while 1 ≤ r && cmp_mon == mon_modp
+# #
+# #        #mon = @view mons[mons_perm[r],:]
+# #        setslice!(mon,mons,mons_perm[r])
+# #        for ll = l:(l + nMatches - 1)
+# #            #term = @view degs[degs_perm[ll],:]
+# #            setslice!(term,degs,degs_perm[ll])
+# #
+# #            #print("found match ($ll,$r), ")
+# #            #print("accessing at ($(degs_perm[ll]),$(degs_perm[r])), ")
+# #            #println("term $term, monomial $mon, ")
+# #            
+# #            # multiply then split the terms
+# #            #newterm = div.(mon .+ term .- fill(p-1,n), p)
+# #            for i in 1:n
+# #                newterm[i] = div(mon[i] + term[i] - (p-1), p)
+# #            end
+# #
+# #            #println("kterm")
+# #            kterm = degkron(term)
+# #            #println((kterm))
+# #            #println("newcoefind")
+# #            newcoefind = reverseDegs[kterm] 
+# #            #println(typeof(newcoefind))
+# #            newcoef = coefs[newcoefind]
+# #
+# #            #println("knewterm")
+# #            knewterm = monkron(newterm)
+# #            #println((knewterm))
+# #            #println("row")
+# #            row = reverseMons[knewterm]
+# #            #println(typeof(row))
+# #            #println("kmon")
+# #            kmon = monkron(mon)
+# #            #println(typeof(kmon))
+# #            #println("col")
+# #            col = reverseMons[kmon]
+# #            #println(typeof(col))
+# #            #println("setting matrix element ($row,$col)")
+# #            result[row,col] += newcoef
+# #            #error()
+# #        end
+# #
+# #        r = r - 1
+# #        left = true
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        1 ≤ r && setslice!(cmp_mon,mons_modp,mons_perm[r])
+# #      end
+# #
+# #      l = l + nMatches - 1
+# #    else
+# #      if left
+# #        l = l + 1
+# #        left = false
+# #      else
+# #        r = r - 1
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        left = true
+# #      end
+# #    end
+# #  end
+# #
+# #  result
+# #end
+# #
+# #struct FastHashInt{T<:Integer}; i::T; end
+# #
+# #Base.:(==)(x::FastHashInt, y::FastHashInt) = x.i == y.i
+# #Base.hash(x::FastHashInt, h::UInt) = xor(UInt(x.i), h)
+# #
+# #"""
+# #Finds the matrix of multiplying by the polynomial with 
+# #coefficients coefs and degrees degs
+# #
+# #Performance TODO list:
+# # * try to ensure access inside the loops is regular (this will be important for gpu version)
+# # * In terms of allocations, the bottleneck seems to be allocating integers,
+# #     and this seems to have to do with the way the dictionaries are used.
+# #     Probably best to reengineer this in a more performant way.
+# # * Is it best to make the inner loop into it's own function? 
+# #     Should try this out and see if Julia speeds up
+# #
+# #For now this part isn't the bottleneck anymore, but I'll work on it later
+# #
+# #This one uses Kronecker substitution and fast hash ints
+# #
+# #"""
+# #function matrix_of_multiply_then_split_sortmodp_kronecker_fasthashint(p,coefs,degs,d)
+# #  n = size(degs,2)
+# #  mons = DeRham.DeRham.gen_exp_vec(n,d)
+# #  mons = reduce(vcat,transpose.(mons))
+# #  #elementtype = eltype(degs)
+# #
+# #  nMons = size(mons,1)
+# #  nTerms = size(degs,1)
+# #    
+# #  monkron(v) = kronecker(v,d,n)
+# #  degkron(v) = kronecker(v,p*d,n)
+# #
+# #  # Preprocessing
+# #  #reverseMons = Dict{FastHashInt{Int64},Int64}()
+# #  #for i in 1:size(mons,1)
+# #  #  reverseMons[FastHashInt(monkron(
+# #
+# #  reverseMons = Dict(FastHashInt(monkron(mons[i,:])) => i for i in 1:size(mons,1))
+# #  reverseDegs = Dict(FastHashInt(degkron(degs[i,:])) => i for i in 1:size(degs,1))
+# #  #TODO: allocation from the above line will eventually be a bottleneck
+# #  #      please replace with for-loop-based code that does not slice
+# #
+# #  # DID NOT REPRODUCE
+# #  #
+# #  #iii = 1002320
+# ##  mymon = mons[10,:]
+# #  #kmymon = monkron(mymon)
+# #  #@time b = reverseMons[iii]
+# #  #println(b)
+# #  #error() 
+# #
+# #  degs_modp = degs .% p
+# #  mons_modp = mons .% p
+# #
+# #  # this uses a view to imptove performance later
+# #  degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+# #  mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+# #  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+# #  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+# #
+# #  #println("mons: $mons")
+# #  #println("mons sorted: $(mons[mons_perm,:])")
+# #  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+# #  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+# #
+# #  # we need to traverse both arrays at once
+# #  # we consider degs to be on the "left"
+# #  left = true
+# #
+# #  l = 1 # left index
+# #  r = nMons # right index
+# #
+# #  # PRE-ALLOCATION
+# #
+# #  result = zeros(eltype(coefs),nMons,nMons)
+# #
+# #  # used in the loop, but allocate here once
+# #  newterm = zeros(eltype(degs),n)
+# #
+# #  # Note: preallocating these things doesn't seem to change performance
+# #  #row = Ref{Int64}(0)
+# #  #col = Ref{Int64}(0)
+# #  #newcoefind = 0
+# #  #newcoef = zero(eltype(coefs))
+# #  
+# #  # this function is meant to be inlined
+# #  function setslice!(target,source,ind)
+# #    for i = 1:n
+# #      target[i] = source[ind,i]
+# #    end
+# #  end
+# #
+# #  mon_modp = zeros(eltype(degs),n)
+# #  term_modp = zeros(eltype(degs),n)
+# #  cmp_term = zeros(eltype(degs),n)
+# #  cmp_mon = zeros(eltype(degs),n)
+# #  term = zeros(eltype(degs),n)
+# #  mon = zeros(eltype(degs),n)
+# #
+# #  while l ≤ nTerms && 1 ≤ r
+# #    #mon_modp = @view mons_modp[mons_perm[r],:]
+# #    setslice!(mon_modp,mons_modp,mons_perm[r])
+# #    #term_modp = @view degs_modp[degs_perm[l],:]
+# #    setslice!(term_modp,degs_modp,degs_perm[l])
+# #    if terms_are_relevant(p,mon_modp,term_modp)
+# #      # we have a match!
+# #
+# #      # Short preprocessing step: how many terms in degs have this exponent vector?
+# #      nMatches = 1
+# #      #cmp_term = @view(degs_modp[degs_perm[l+nMatches],:])
+# #      setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+# #      while l + nMatches ≤ nTerms && cmp_term == term_modp
+# #        nMatches = nMatches + 1
+# #        l + nMatches ≤ nTerms && setslice!(cmp_term,degs_modp,degs_perm[l+nMatches])
+# #      end
+# #
+# #      # loop through all monomials and process each one
+# #
+# #      #cmp_term = @view(mons_modp[mons_perm[r],:])
+# #      setslice!(cmp_mon,mons_modp,mons_perm[r])
+# #
+# #      while 1 ≤ r && cmp_mon == mon_modp
+# #
+# #        #mon = @view mons[mons_perm[r],:]
+# #        setslice!(mon,mons,mons_perm[r])
+# #        for ll = l:(l + nMatches - 1)
+# #            #term = @view degs[degs_perm[ll],:]
+# #            setslice!(term,degs,degs_perm[ll])
+# #
+# #            #print("found match ($ll,$r), ")
+# #            #print("accessing at ($(degs_perm[ll]),$(degs_perm[r])), ")
+# #            #println("term $term, monomial $mon, ")
+# #            
+# #            # multiply then split the terms
+# #            #newterm = div.(mon .+ term .- fill(p-1,n), p)
+# #            for i in 1:n
+# #                newterm[i] = div(mon[i] + term[i] - (p-1), p)
+# #            end
+# #
+# #            println("kterm")
+# #            @time kterm = FastHashInt(degkron(term))
+# #            #println(typeof(kterm))
+# #            println("newcoefind")
+# #            @time newcoefind = reverseDegs[kterm] 
+# #            #println(typeof(newcoefind))
+# #            newcoef = coefs[newcoefind]
+# #
+# #            println("knewterm")
+# #            @time knewterm = FastHashInt(monkron(newterm))
+# #            #println((knewterm))
+# #            println("row")
+# #            @time row = reverseMons[knewterm]
+# #            #println(typeof(row))
+# #            println("kmon")
+# #            @time kmon = FastHashInt(monkron(mon))
+# #            #println(typeof(kmon))
+# #            println("col")
+# #            @time col = reverseMons[kmon]
+# #            #println(typeof(col))
+# #            #println("setting matrix element ($row,$col)")
+# #            result[row,col] += newcoef
+# #            error()
+# #        end
+# #
+# #        r = r - 1
+# #        left = true
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        1 ≤ r && setslice!(cmp_mon,mons_modp,mons_perm[r])
+# #      end
+# #
+# #      l = l + nMatches - 1
+# #    else
+# #      if left
+# #        l = l + 1
+# #        left = false
+# #      else
+# #        r = r - 1
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        left = true
+# #      end
+# #    end
+# #  end
+# #
+# #  result
+# #end
+# #
+# #"""
+# #Finds the matrix of multiplying by the polynomial with 
+# #coefficients coefs and degrees degs
+# #
+# #Performance TODO list:
+# # * try to ensure access inside the loops is regular (this will be important for gpu version)
+# # * In terms of allocations, the bottleneck seems to be allocating integers,
+# #     and this seems to have to do with the way the dictionaries are used.
+# #     Probably best to reengineer this in a more performant way.
+# # * Is it best to make the inner loop into it's own function? 
+# #     Should try this out and see if Julia speeds up
+# #
+# #For now this part isn't the bottleneck anymore, but I'll work on it later
+# #
+# #This one uses Kronecker substitution
+# #
+# #It doesn't give correct answers right now.
+# #"""
+# #function matrix_of_multiply_then_split_sortmodp_kronecker_noslice(p,coefs,degs,d)
+# #
+# #  n = size(degs,2)
+# #  mons = DeRham.DeRham.gen_exp_vec(n,d)
+# #  mons = reduce(vcat,transpose.(mons))
+# #
+# #  nMons = size(mons,1)
+# #  nTerms = size(degs,1)
+# #
+# #  monkron(v) = kronecker(v,d,n)
+# #  degkron(v) = kronecker(v,p*d,n) # d is (p-1) * original d of the polynomail
+# #    
+# #  # Preprocessing
+# #  reverseMons = Dict(monkron(mons[i,:]) => i for i in 1:size(mons,1))
+# #  reverseDegs = Dict(degkron(degs[i,:]) => i for i in 1:size(degs,1))
+# #
+# #  #println()
+# #  #println(reverseDegs[793424])
+# #  #println(kron([24,24,24,8]))
+# #  #println(reverseDegs[kron([24,24,24,8])])
+# #  #println()
+# #  #println(reverseMons)
+# #
+# #  degs_modp = degs .% p
+# #  mons_modp = mons .% p
+# #
+# #  # this uses a view to imptove performance later
+# #  degs_perm = sortperm(view.(Ref(degs_modp),1:nTerms,:))
+# #  mons_perm = sortperm(view.(Ref(mons_modp),1:nMons,:))
+# #  #degs_perm = sortperm(collect(eachrow(degs_modp)))
+# #  #mons_perm = sortperm(collect(eachrow(mons_modp)))
+# #
+# #  #println("mons: $mons")
+# #  #println("mons sorted: $(mons[mons_perm,:])")
+# #  #println("mons sorted mod p: $(mons_modp[mons_perm,:])")
+# #  #println("delta_1 sorted mod p: $(degs_modp[degs_perm,:])")
+# #
+# #  # we need to traverse both arrays at once
+# #  # we consider degs to be on the "left"
+# #  left = true
+# #
+# #  l = 1 # left index
+# #  r = nMons # right index
+# #
+# #  result = zeros(eltype(coefs),nMons,nMons)
+# #
+# #  # used in the loop, but allocate here once
+# #  newterm = zeros(eltype(degs),n)
+# #
+# #  # Note: preallocating these things doesn't seem to change performance
+# #  #row = 0
+# #  #col = 0
+# #  #newcoefind = 0
+# #  #newcoef = zero(eltype(coefs))
+# #
+# #  while l ≤ nTerms && 1 ≤ r
+# #    mon_modp = @view mons_modp[mons_perm[r],:]
+# #    term_modp = @view degs_modp[degs_perm[l],:]
+# #    if terms_are_relevant(p,mon_modp,term_modp)
+# #      # we have a match!
+# #     
+# #
+# #      # Short preprocessing step: how many terms in degs have this exponent vector?
+# #      nMatches = 1
+# #      while l + nMatches ≤ nTerms && @view(degs_modp[degs_perm[l+nMatches],:]) == term_modp
+# #        nMatches = nMatches + 1
+# #      end
+# #
+# #      # loop through all monomials and process each one
+# #      while 1 ≤ r && @view(mons_modp[mons_perm[r],:]) == mon_modp
+# #
+# #        mon = @view mons[mons_perm[r],:]
+# #        for ll = l:(l + nMatches - 1)
+# #          term = @view degs[degs_perm[ll],:]
+# #          #print("found match ($ll,$r), ")
+# #          #print("accessing term at ($(degs_perm[ll]),$(degs_perm[r])), ")
+# #          #print("term $term multiplies with monomial $mon, ")
+# #          
+# #          # multiply then split the terms
+# #          #newterm = div.(mon .+ term .- fill(p-1,n), p)
+# #          for i in 1:n
+# #              newterm[i] = div(mon[i] + term[i] - (p-1), p)
+# #          end
+# #
+# #          kterm = degkron(term)
+# #          newcoefind = reverseDegs[kterm] 
+# #          newcoef = coefs[newcoefind]
+# #
+# #          knewterm = monkron(newterm)
+# #          row = reverseMons[knewterm]
+# #          kmon = monkron(mon)
+# #          col = reverseMons[kmon]
+# #
+# #          #if row == 565
+# #          #  print("found match ($ll,$r), ")
+# #          #  print("coef ind $newcoefind, from term $term,")
+# #          #  println("matrix elt ($row,$col)")
+# #          #end
+# #          #print("found match ($ll,$r), ")
+# #          #print("coef ind $newcoefind, ")
+# #          #println("matrix elt ($row,$col)")
+# #
+# #          #println("setting matrix element ($row,$col)")
+# #          result[row,col] += newcoef
+# #        end
+# #
+# #        r = r - 1
+# #        left = true
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #      end
+# #
+# #      l = l + nMatches - 1
+# #    else
+# #      if left
+# #        l = l + 1
+# #        left = false
+# #      else
+# #        r = r - 1
+# #        #0 < r && println("$r, true monomial: $(mons_perm[r])")
+# #        left = true
+# #      end
+# #    end
+# #  end
+# #
+# #  result
+# #end
+ 
+
+# """
+# Lifts a matrix with entries in GF(p) to ZZ and converts the entries
+# to Julia integers
+# """
+# lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
+
+# """
+#     kronecker_opt(vec, n, kroneckerPregen::Vector{Int})
+
+# Version of kronecker() that utilizes pregeneration, see example in body of
+# matrix_of_multiply_then_split_sortmodp_kronecker2() to see how it works
+# """
+# function kronecker_opt(vec, n, kroneckerPregen::Vector{Int})#,returntype=Int64)
+#     s = 0#zero(returntype)
+#     #println("$n")
+#     for i in eachindex(kroneckerPregen)
+#         s = s + vec[i] * kroneckerPregen[i]
+#     end
+#     s
+# end
+
+# """
+#     mod_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
+
+# If a vector encodes to `num` with key generated from kroneckerPregen this method will compute
+# the vector .% m in the encoded space.
+# """
+# function mod_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
+#     return num - div_kronecker(num, m, numVars, kroneckerPregen) * m
+# end
+
+# """
+#     mod_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
+
+# If a vector encodes to `num` with key generated from kroneckerPregen this method will compute
+# the vector .÷ m in the encoded space.
+# """
+# function div_kronecker(num, m, numVars, kroneckerPregen::Vector{Int})
+#     result = 0
+#     for i in numVars:-1:1
+#         q, num = divrem(num, kroneckerPregen[i])
+#         result += (q ÷ m) * kroneckerPregen[i]
+#     end
+    
+#     return result
+# end
+
+
+# function matrix_of_multiply_then_split_sortmodp_kronecker2(p,coefs,degs,d)
+#     numVars = size(degs,2)
+#     mons = DeRham.DeRham.gen_exp_vec(numVars,d)
+#     mons = reduce(vcat,transpose.(mons))
+
+#     nMons = size(mons,1)
+#     nTerms = size(degs,1)
+
+#     # Everything needs to be encoded with the same key to make the is_relevant() check work
+#     maxdeg = p * (d + 1)
+
+#     # We want to avoid having to compute te same powers of the encoding key every time we call kronecker()
+#     kroneckerPregen = zeros(Int, numVars)
+#     for i in eachindex(kroneckerPregen)
+#         kroneckerPregen[i] = (maxdeg + 1) ^ (i - 1)
+#     end
+
+#     kron(v) = kronecker_opt(v, numVars, kroneckerPregen)
+#     div_kron(v, m) = div_kronecker(v, m, numVars, kroneckerPregen)
+#     mod_kron(v, m) = mod_kronecker(v, m, numVars, kroneckerPregen)
+
+#     reverseMons = Dict{Int,Int}()
+#     encodedMons = zeros(Int, nMons)
+#     tempmon = zeros(Int, numVars)
+#     for i in axes(mons, 1)
+#         for j in eachindex(tempmon)
+#             tempmon[j] = mons[i, j]
+#         end
+#         key = kron(tempmon)
+#         encodedMons[i] = key
+#         reverseMons[key] = i
+#     end
+
+#     reverseDegs = Dict{Int,Int}()
+#     encodedDegs = zeros(Int, nTerms)
+#     tempdeg = zeros(Int, numVars)
+#     for i in axes(degs, 1)
+#         for j in eachindex(tempdeg)
+#             tempdeg[j] = degs[i, j]
+#         end
+#         key = kron(tempdeg)
+#         encodedDegs[i] = key
+#         reverseDegs[key] = i
+#     end
+  
+#     encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
+#     encodedDegsModP = map(x -> mod_kron(x, p), encodedDegs)
+  
+#     mons_perm = sortperm(encodedMonsModP)
+#     degs_perm = sortperm(encodedDegsModP)
+  
+#     # we need to traverse both arrays at once
+#     # we consider degs to be on the "left"
+#     left = true
+  
+#     l = 1 # left index
+#     r = nMons # right index
+  
+  
+#     result = zeros(eltype(coefs),nMons,nMons)
+
+#     relevant = kron(fill(p - 1, numVars))
+#     while l ≤ nTerms && 1 ≤ r
+#         monModP = encodedMonsModP[mons_perm[r]]
+#         termModP = encodedDegsModP[degs_perm[l]]
+#         if monModP + termModP == relevant
+#             nMatches = 1
+#             cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+
+#             while l + nMatches ≤ nTerms && cmpTerm == termModP
+#                 nMatches += 1
+#                 if l + nMatches ≤ nTerms
+#                     cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+#                 end
+#             end
+    
+
+#             cmpMon = encodedMonsModP[mons_perm[r]]
+#             # loop through all monomials and process each one
+    
+#             while 1 <= r && cmpMon == monModP
+#             #mon = @view mons[mons_perm[r],:]
+#             mon = encodedMons[mons_perm[r]]
+#             for ll = l:(l + nMatches - 1)
+#                 term = encodedDegs[degs_perm[ll]]
+#                 newTerm = div_kron(mon + term - relevant, p)
+#                 newcoefind = reverseDegs[term] 
+#                 newcoef = coefs[newcoefind]
+#                 row = reverseMons[newTerm]
+#                 col = reverseMons[mon]
+#                 result[row,col] += newcoef
+#             end
+    
+#             r -= 1
+#             left = true
+            
+#             #if 1 ≤ r
+#             #    cmpMon = encodedMonsModP[mons_perm[r]]
+#             #end
+#             # somehow this is erroring for me - Alex
+#             # NOTE: it should work if you put the assignment in parens - JJ
+#             (1 ≤ r) && (cmpMon = encodedMonsModP[mons_perm[r]])
+#         end
+    
+#         l += nMatches - 1
+#         else
+#             if left
+#                 l += 1
+#                 left = false
+#             else
+#                 r -= 1
+#                 left = true
+#             end
+#         end
+#     end
+
+#     result
+# end
+
+
+# function matrix_of_multiply_then_split_sortmodp_kronecker2_correct(p,coefs,degs,d)
+#     numVars = size(degs,2)
+#     mons = DeRham.DeRham.gen_exp_vec(numVars,d)
+#     mons = reduce(vcat,transpose.(mons))
+
+#     nMons = size(mons,1)
+#     nTerms = size(degs,1)
+
+#     # Everything needs to be encoded with the same key to make the is_relevant() check work
+#     maxdeg = p * (d + 1)
+
+#     # We want to avoid having to compute te same powers of the encoding key every time we call kronecker()
+#     kroneckerPregen = zeros(Int, numVars)
+#     for i in eachindex(kroneckerPregen)
+#         kroneckerPregen[i] = (maxdeg + 1) ^ (i - 1)
+#     end
+
+#     kron(v) = kronecker_opt(v, numVars, kroneckerPregen)
+#     div_kron(v, m) = div_kronecker(v, m, numVars, kroneckerPregen)
+#     mod_kron(v, m) = mod_kronecker(v, m, numVars, kroneckerPregen)
+
+#     reverseMons = Dict{Int,Int}()
+#     encodedMons = zeros(Int, nMons)
+#     tempmon = zeros(Int, numVars)
+#     for i in axes(mons, 1)
+#         for j in eachindex(tempmon)
+#             tempmon[j] = mons[i, j]
+#         end
+#         key = kron(tempmon)
+#         encodedMons[i] = key
+#         reverseMons[key] = i
+#     end
+
+#     reverseDegs = Dict{Int,Int}()
+#     encodedDegs = zeros(Int, nTerms)
+#     tempdeg = zeros(Int, numVars)
+#     for i in axes(degs, 1)
+#         for j in eachindex(tempdeg)
+#             tempdeg[j] = degs[i, j]
+#         end
+#         key = kron(tempdeg)
+#         encodedDegs[i] = key
+#         reverseDegs[key] = i
+#     end
+  
+#     encodedMonsModP = map(x -> mod_kron(x, p), encodedMons)
+#     encodedDegsModP = map(x -> mod_kron(x, p), encodedDegs)
+  
+#     mons_perm = sortperm(encodedMonsModP)
+#     degs_perm = sortperm(encodedDegsModP)
+  
+#     # we need to traverse both arrays at once
+#     # we consider degs to be on the "left"
+#     left = true
+  
+#     l = 1 # left index
+#     r = nMons # right index
+  
+  
+#     result = zeros(eltype(coefs),nMons,nMons)
+
+#     relevant = kron(fill(p - 1, numVars))
+#     while l ≤ nTerms && 1 ≤ r
+#         monModP = encodedMonsModP[mons_perm[r]]
+#         termModP = encodedDegsModP[degs_perm[l]]
+#         cmp = monModP + termModP - relevant
+#         if cmp == 0
+#             nMatches = 1
+#             cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+
+#             while l + nMatches ≤ nTerms && cmpTerm == termModP
+#                 nMatches += 1
+#                 if l + nMatches ≤ nTerms
+#                     cmpTerm = encodedDegsModP[degs_perm[l + nMatches]]
+#                 end
+#             end
+    
+
+#             cmpMon = encodedMonsModP[mons_perm[r]]
+#             # loop through all monomials and process each one
+    
+#             while 1 <= r && cmpMon == monModP
+#                 #mon = @view mons[mons_perm[r],:]
+#                 mon = encodedMons[mons_perm[r]]
+#                 for ll = l:(l + nMatches - 1)
+#                     term = encodedDegs[degs_perm[ll]]
+#                     newTerm = div_kron(mon + term - relevant, p)
+#                     newcoefind = reverseDegs[term] 
+#                     newcoef = coefs[newcoefind]
+#                     row = reverseMons[newTerm]
+#                     col = reverseMons[mon]
+#                     result[row,col] += newcoef
+#                 end
+    
+#                 r -= 1
+#                 left = true
+                
+#                 #if 1 ≤ r
+#                 #    cmpMon = encodedMonsModP[mons_perm[r]]
+#                 #end
+#                 # somehow this is erroring for me - Alex
+#                 # NOTE: it should work if you put the assignment in parens - JJ
+#                 (1 ≤ r) && (cmpMon = encodedMonsModP[mons_perm[r]])
+#             end
+#             l += nMatches - 1
+#         else
+#             if cmp < 0
+#                 left = true
+#             elseif 0 < cmp
+#                 left = false
+#             end
+
+#             if left
+#                 l += 1
+#                 left = false
+#             else
+#                 r -= 1
+#                 left = true
+#             end
+#         end
+#     end
+
+#     result
+# end
 
