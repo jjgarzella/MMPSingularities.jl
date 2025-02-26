@@ -32,6 +32,16 @@ function A(p,f)
     g -> ψ(g * f^(p-1))
 end
 
+function αₛ(λ,s,τ)
+    result = 1
+    for t in 0:τ-1
+        result += binomial(-λ,t) * binomial(λ,s-t)
+    end
+    result *= (-1)^s 
+    result
+end
+
+
 #TODO:
 #
 #* implement/get multiply then split for A_f
