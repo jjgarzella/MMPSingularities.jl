@@ -1,0 +1,34 @@
+julia> using Oscar
+  ___   ____   ____    _    ____
+ / _ \ / ___| / ___|  / \  |  _ \   |  Combining ANTIC, GAP, Polymake, Singular
+| | | |\___ \| |     / _ \ | |_) |  |  Type "?Oscar" for more information
+| |_| | ___) | |___ / ___ \|  _ <   |  Manual: https://docs.oscar-system.org
+ \___/ |____/ \____/_/   \_\_| \_\  |  Version 1.2.2
+julia> R, avars = polynomial_ring(QQ,:a => (1:40))
+(Multivariate polynomial ring in 40 variables over QQ, QQMPolyRingElem[a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10]  …  a[31], a[32], a[33], a[34], a[35], a[36], a[37], a[38], a[39], a[40]])
+
+julia> P, t = power_series_ring(R,30,:t)
+(Univariate power series ring over R, t + O(t^31))
+
+julia> # a[i] = #X(F_q^i)
+julia> a = avars
+julia> logzeta = sum([a[i]*t^i / i for i in 1:30])
+julia> zeta = exp(logzeta);
+julia> coeff(zeta,0)
+1
+
+julia> coeff(zeta,1)
+a[1]
+
+julia> coeff(zeta,2)
+1//2*a[1]^2 + 1//2*a[2]
+
+julia> coeff(zeta,3)
+1//6*a[1]^3 + 1//2*a[1]*a[2] + 1//3*a[3]
+
+julia> coeff(zeta,4)
+1//24*a[1]^4 + 1//4*a[1]^2*a[2] + 1//3*a[1]*a[3] + 1//8*a[2]^2 + 1//4*a[4]
+julia> coeff(zeta,10)
+1//3628800*a[1]^10 + 1//80640*a[1]^8*a[2] + 1//15120*a[1]^7*a[3] + 1//5760*a[1]^6*a[2]^2 + 1//2880*a[1]^6*a[4] + 1//720*a[1]^5*a[2]*a[3] + 1//600*a[1]^5*a[5] + 1//1152*a[1]^4*a[2]^3 + 1//192*a[1]^4*a[2]*a[4] + 1//432*a[1]^4*a[3]^2 + 1//144*a[1]^4*a[6] + 1//144*a[1]^3*a[2]^2*a[3] + 1//60*a[1]^3*a[2]*a[5] + 1//72*a[1]^3*a[3]*a[4] + 1//42*a[1]^3*a[7] + 1//768*a[1]^2*a[2]^4 + 1//64*a[1]^2*a[2]^2*a[4] + 1//72*a[1]^2*a[2]*a[3]^2 + 1//24*a[1]^2*a[2]*a[6] + 1//30*a[1]^2*a[3]*a[5] + 1//64*a[1]^2*a[4]^2 + 1//16*a[1]^2*a[8] + 1//144*a[1]*a[2]^3*a[3] + 1//40*a[1]*a[2]^2*a[5] + 1//24*a[1]*a[2]*a[3]*a[4] + 1//14*a[1]*a[2]*a[7] + 1//162*a[1]*a[3]^3 + 1//18*a[1]*a[3]*a[6] + 1//20*a[1]*a[4]*a[5] + 1//9*a[1]*a[9] + 1//3840*a[2]^5 + 1//192*a[2]^3*a[4] + 1//144*a[2]^2*a[3]^2 + 1//48*a[2]^2*a[6] + 1//30*a[2]*a[3]*a[5] + 1//64*a[2]*a[4]^2 + 1//16*a[2]*a[8] + 1//72*a[3]^2*a[4] + 1//21*a[3]*a[7] + 1//24*a[4]*a[6] + 1//50*a[5]^2 + 1//10*a[10]
+
+
