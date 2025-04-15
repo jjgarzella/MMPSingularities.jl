@@ -502,3 +502,46 @@ end
 #
 # λ is the precision, r is the order of the finite field extension,
 # a is the exponent of p^a = q, and τ is the "fudge factor"
+
+
+
+# MARK - zeta function utilities
+
+function zeta_of_Pn(n,q,t)
+  res = 1
+  for i in 0:n
+      res *= 1/(1 - (q^i)*t)
+  end
+  res
+end
+
+function L_poly_ell(fullzeta,q)
+    t = gen(parent(fullzeta))
+    L = fullzeta
+    
+    L *= (1-t)
+    L *= (1-q*t)
+
+    L
+end
+
+function L_poly_K3(fullzeta,q)
+    t = gen(parent(fullzeta))
+    L = fullzeta
+    for i in 0:2
+        L *= (1 - (q^i)*t)
+    end
+
+    1/L
+end
+
+
+function L_poly_cubicfourfold(fullzeta,q)
+    t = gen(parent(fullzeta))
+    L = fullzeta
+    for i in 0:4
+        L *= (1 - (q^i)*t)
+    end
+
+    1/L
+end
