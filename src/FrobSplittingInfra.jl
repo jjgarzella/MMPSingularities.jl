@@ -572,14 +572,14 @@ end
 
 """
 Returns true if the polynomial f 
-is in the "frobenius power" \\frak{m}^[p],
-where {m} is the ideal of variables of the ring.
+is in the "frobenius power" \\frak{m}^[m],
+where \\frak{m} is the ideal of variables of the ring.
 
 """
 function inPowerOfVariableIdeal(p,m,f)
   # don't need this because exponent_vectors will have 
   # no elements for the zero polynomial
-  poly == zero(f) && return true
+  f == zero(f) && return true
 
 
   for i in 1:length(f)
@@ -616,6 +616,24 @@ function isHomog(poly;ofdegree=-1)
   end
 end#function
 
+function bracketpower(I,m)
+    R = base_ring(I)
+
+    res = zeros(R,0)
+    for g in gens(I)
+        new_gen = g^m
+        push!(res,new_gen)
+    end
+
+    ideal(R,res)
+end
+
+
+function fedderColonIdeal(I)
+    p = characteristic(base_ring(I))
+    bracketpower(I,p):I
+end
+
 
 # MARK - calculations of quasi-F-split height in one form or another
 
@@ -631,6 +649,12 @@ function isFSplit(p,poly)
   !inPowerOfVariableIdeal(p,p,poly^(p-1))
 
 end#function
+
+function isFSplit(I)
+    p = characteristic(base_ring(I))
+    J = fedderColonIdeal(I)
+    !all(inPowerOfVariableIdeal.(p,p,gens(J)))
+end
 
 
 #end#module

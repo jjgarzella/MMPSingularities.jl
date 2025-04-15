@@ -437,3 +437,17 @@ function generic_power_formula(pow,d,n)
   (R,avars,S,xvars,genericpoly^pow)
 end
 
+
+function binomial_edge_ideal(p,v,e)
+    R, xs, ys = polynomial_ring(GF(p),:x => 1:length(v),:y => 1:length(v))
+
+    gens = zeros(R,0)
+    for i in 1:length(e)
+        edge = e[i]
+        f = xs[edge[1]]*ys[edge[2]] - ys[edge[1]]*xs[edge[2]]
+        push!(gens,f)
+    end
+    ideal(R,gens)
+end
+
+
