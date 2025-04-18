@@ -3,14 +3,14 @@ module MMPSingularities
 using Oscar
 using CUDA
 using Memoize
-using Serialization
 using Primes
-using StaticArrays
 using BitIntegers
+using Combinatorics # for random polynomials
 import Adapt
 
-include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
-using .GPUPolynomials
+#include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
+#using .GPUPolynomials
+using GPUPolynomials
 
 include("RandomPolynomials.jl")
 include("delta1/delta1.jl")
@@ -22,7 +22,6 @@ include("FPureThresholds.jl")
 #include("../GPUPolynomials.jl/benchmarks/Benchmarks.jl")
 #include("../GPUPolynomials.jl/src/Delta1.jl")
 #using .Delta1
-#using GPUPolynomials
 #using GPUFiniteFieldMatrices
 
 include("QFSCalabiYau.jl")
