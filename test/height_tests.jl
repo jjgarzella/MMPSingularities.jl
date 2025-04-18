@@ -1,15 +1,19 @@
-include("../src/MMPSingularities.jl")
+#include("../src/MMPSingularities.jl")
 include("../src/RandomPolynomials.jl")
 
 using Test
 using CUDA
 using Oscar
+using BenchmarkTools
 
-function run_tests()
-    # test_height()
-    # test_K3_5()
-    # time_K3_7()
+function height_tests()
+    test_height()
+    test_K3_5()
     test_matrix()
+end
+
+function height_time_tests()
+    time_K3_7()
 end
 
 function test_height()
@@ -96,7 +100,6 @@ function time_K3_7()
     end
 end
 
-using BenchmarkTools
 
 function test_matrix()
     n = 4
@@ -122,20 +125,23 @@ function test_matrix()
         Δ₁fpminus1 = MMPSingularities.Δ₁(fpminus1)
 
         # @time mat0 = MMPSingularities.matrix_of_multiply_then_split_correct(Δ₁fpminus1)
-        display(@benchmark mat1 = MMPSingularities.matrix_of_multiply_then_split($Δ₁fpminus1))
-        display(@benchmark CUDA.@sync mat2 = MMPSingularities.matrix_of_multiply_then_split_gpu($Δ₁fpminus1, $momtspregen))
-        display(@benchmark mat3 = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker($Δ₁fpminus1))
-        display(@benchmark mat4 = MMPSingularities.matrix_of_multiply_then_split_wics($Δ₁fpminus1))
-        display(@benchmark CUDA.@sync mat5 = MMPSingularities.matrix_of_multiply_then_split_wics_gpu($Δ₁fpminus1, $momtspregen))
+        #display(@benchmark mat1 = MMPSingularities.matrix_of_multiply_then_split($Δ₁fpminus1))
+        #display(@benchmark CUDA.@sync mat2 = MMPSingularities.matrix_of_multiply_then_split_gpu($Δ₁fpminus1, $momtspregen))
+        #display(@benchmark mat3 = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker($Δ₁fpminus1))
+        #display(@benchmark mat4 = MMPSingularities.matrix_of_multiply_then_split_wics($Δ₁fpminus1))
+        #display(@benchmark CUDA.@sync mat5 = MMPSingularities.matrix_of_multiply_then_split_wics_gpu($Δ₁fpminus1, $momtspregen))
         
+        mat1 = MMPSingularities.matrix_of_multiply_then_split(Δ₁fpminus1)
+        mat2 = MMPSingularities.matrix_of_multiply_then_split_gpu(Δ₁fpminus1, momtspregen)
+        mat3 = MMPSingularities.matrix_of_multiply_then_split_sortmodp_kronecker(Δ₁fpminus1)
+        mat4 = MMPSingularities.matrix_of_multiply_then_split_wics(Δ₁fpminus1)
+        mat5 = MMPSingularities.matrix_of_multiply_then_split_wics_gpu(Δ₁fpminus1, momtspregen)
 
-        # @assert mat0 == mat1
-        # @assert mat2 == mat5 string(f)
-        # @assert mat1 == mat3 string(f)
-        # @assert mat1 == mat4 string(f)
-        # @assert mat1 == Array(mat2) string(f)
+         @test mat2 == mat5# string(f)
+         @test mat1 == mat3# string(f)
+         @test mat1 == mat4# string(f)
+         @test mat1 == Array(mat2)# string(f)
 
     # end
 end
 
-run_tests()

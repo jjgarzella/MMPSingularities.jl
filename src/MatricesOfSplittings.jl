@@ -850,7 +850,7 @@ function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsi
 end
 
 function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
-    mons = DeRham.gen_exp_vec(numVars,d)
+    mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
     nMons = size(mons,2)

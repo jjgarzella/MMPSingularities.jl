@@ -20,14 +20,17 @@ function oscar_delta1(poly, p)
     change_coefficient_ring(coefficient_ring(R),Δlift,parent=R)
 end
 
-function run_tests()
-    # test_K3_2()
-    # test_K3_3()
-    # test_K3_5()
-    # test_K3_7()
-    # time_K3_5()
-    # time_K3_7()
-    # time_K3_11()
+function delta1_tests()
+    test_K3_2()
+    test_K3_3()
+    test_K3_5()
+    test_K3_7()
+end
+
+function delta1_time_tests()
+    time_K3_5()
+    time_K3_7()
+    time_K3_11()
     time_K3_13()
 end
 
@@ -227,4 +230,4 @@ end
 # end
 
 
-run_tests()
+#run_tests()
