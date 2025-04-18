@@ -8,9 +8,9 @@ using BitIntegers
 using Combinatorics # for random polynomials
 import Adapt
 
-#include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
-#using .GPUPolynomials
-using GPUPolynomials
+include("../GPUPolynomials.jl/src/GPUPolynomials.jl")
+using .GPUPolynomials
+#using GPUPolynomials
 
 include("RandomPolynomials.jl")
 include("delta1/delta1.jl")

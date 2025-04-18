@@ -1,9 +1,9 @@
-include("../src/MMPSingularities.jl")
-include("../src/RandomPolynomials.jl")
-
-using Test
-using CUDA
-using Oscar
+#include("../src/MMPSingularities.jl")
+#include("../src/RandomPolynomials.jl")
+#
+#using Test
+#using CUDA
+#using Oscar
 
 function oscar_delta1(poly, p)
     R = parent(poly)
@@ -21,20 +21,20 @@ function oscar_delta1(poly, p)
 end
 
 function delta1_tests()
-    test_K3_2()
-    test_K3_3()
-    test_K3_5()
-    test_K3_7()
+    delta1_test_K3_2()
+    delta1_test_K3_3()
+    delta1_test_K3_5()
+    delta1_test_K3_7()
 end
 
 function delta1_time_tests()
-    time_K3_5()
-    time_K3_7()
-    time_K3_11()
-    time_K3_13()
+    delta1_time_K3_5()
+    delta1_time_K3_7()
+    delta1_time_K3_11()
+    delta1_time_K3_13()
 end
 
-function test_K3_2()
+function delta1_test_K3_2()
     n = 4
     p = 2
     R, vars = polynomial_ring(GF(p), n)
@@ -57,7 +57,7 @@ function test_K3_2()
     @test string(gpu_result) == string(oscar_result)
 end
 
-function test_K3_3()
+function delta1_test_K3_3()
     n = 4
     p = 3
     R, vars = polynomial_ring(GF(p), n)
@@ -80,11 +80,11 @@ function test_K3_3()
     @test string(gpu_result) == string(oscar_result)
 end
 
-function test_K3_5()
+function delta1_test_K3_5()
     n = 4
     p = 5
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
     # f = x^4 + y^4
 
     fpminus1 = f ^ (p - 1)
@@ -103,12 +103,12 @@ function test_K3_5()
     # @test gpu_result == oscar_result
 end
 
-function time_K3_5()
+function delta1_time_K3_5()
     n = 4
     p = 5
 
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
 
     plan = MMPSingularities.plan_Δ₁(n, p)
 
@@ -119,7 +119,7 @@ function time_K3_5()
     gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     println("Quartic K3_5 times: ")
     for i in 1:100
-        f = random_homog_poly_mod(p, vars, n)
+        f = MMPSingularities.random_homog_poly_mod(p, vars, n)
         fpminus1 = f ^ (p - 1)
         fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
         fpminus1_gpu.opPlan = plan
@@ -128,11 +128,11 @@ function time_K3_5()
     end
 end
 
-function test_K3_7()
+function delta1_test_K3_7()
     n = 4
     p = 7
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
     # f = x^4 + y^4
 
     fpminus1 = f ^ (p - 1)
@@ -150,12 +150,12 @@ function test_K3_7()
     @test string(gpu_result) == string(oscar_result)
 end
 
-function time_K3_7()
+function delta1_time_K3_7()
     n = 4
     p = 7
 
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
 
     plan = MMPSingularities.plan_Δ₁(n, p)
     fpminus1 = f ^ (p - 1)
@@ -165,7 +165,7 @@ function time_K3_7()
     gpud1 = MMPSingularities.Δ₁(fpminus1_gpu)
     println("Quartic K3_7 times: ")
     for i in 1:50
-        f = random_homog_poly_mod(p, vars, n)
+        f = MMPSingularities.random_homog_poly_mod(p, vars, n)
         fpminus1 = f ^ (p - 1)
         fpminus1_gpu = MMPSingularities.CufpMPolyRingElem(fpminus1.data, UInt64)
         fpminus1_gpu.opPlan = plan
@@ -174,11 +174,11 @@ function time_K3_7()
     end
 end
 
-function time_K3_11()
+function delta1_time_K3_11()
     n = 4
     p = 11
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
     # f = x^4 + y^4
 
     fpminus1 = f ^ (p - 1)
@@ -193,11 +193,11 @@ function time_K3_11()
     return
 end
 using Profile
-function time_K3_13()
+function delta1_time_K3_13()
     n = 4
     p = 13
     R, vars = polynomial_ring(GF(p), n)
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
     # f = x^4 + y^4
 
     fpminus1 = f ^ (p - 1)
@@ -212,7 +212,7 @@ function time_K3_13()
     return
 end
 
-# function time_K3_13()
+# function delta1_time_K3_13()
 #     n = 4
 #     p = 11
 #     R, vars = polynomial_ring(GF(p), n)

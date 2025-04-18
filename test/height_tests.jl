@@ -1,10 +1,10 @@
 #include("../src/MMPSingularities.jl")
-include("../src/RandomPolynomials.jl")
-
-using Test
-using CUDA
-using Oscar
-using BenchmarkTools
+#include("../src/RandomPolynomials.jl")
+#
+#using Test
+#using CUDA
+#using Oscar
+#using BenchmarkTools
 
 function height_tests()
     test_height()
@@ -113,7 +113,7 @@ function test_matrix()
     # fpminus1 = MMPSingularities.HomogeneousPolynomial(f ^ (p - 1))
     # Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
     # for i in 1:10
-    f = random_homog_poly_mod(p, vars, n)
+    f = MMPSingularities.random_homog_poly_mod(p, vars, n)
     # fpminus1 = MMPSingularities.HomogeneousPolynomial(f ^ (p - 1))
     # Δ₁fpminus1 = MMPSingularities.delta1(fpminus1, p; pregen = pregen).poly
     # Δ₁fpminus1 = MMPSingularities.Δ₁l(p, f ^ (p - 1))
