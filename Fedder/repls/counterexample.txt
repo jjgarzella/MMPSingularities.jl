@@ -1,0 +1,926 @@
+julia> include("src/diag_momts_small_naive.jl")
+diag_momts_naive_little (generic function with 1 method)
+
+julia> out = diag_momts_naive_little(f,p)
+(QQMPolyRingElem[a[1]^2, 2*a[1]*a[5] + a[2]^2, 2*a[1]*a[8] + a[3]^2, 2*a[1]*a[10] + a[4]^2, 2*a[1]*a[21] + 2*a[2]*a[11] + a[5]^2, 2*a[1]*a[24] + 2*a[2]*a[14] + 2*a[3]*a[12] + 2*a[5]*a[8] + a[6]^2, 2*a[1]*a[26] + 2*a[2]*a[16] + 2*a[4]*a[13] + 2*a[5]*a[10] + a[7]^2, 2*a[1]*a[31] + 2*a[3]*a[17] + a[8]^2, 2*a[1]*a[33] + 2*a[3]*a[19] + 2*a[4]*a[18] + 2*a[8]*a[10] + a[9]^2, 2*a[1]*a[35] + 2*a[4]*a[20] + a[10]^2  …  2*a[21]*a[35] + 2*a[23]*a[30] + a[26]^2, 2*a[24]*a[31] + a[27]^2, 2*a[24]*a[33] + 2*a[25]*a[32] + 2*a[26]*a[31] + 2*a[27]*a[29] + a[28]^2, 2*a[24]*a[35] + 2*a[25]*a[34] + 2*a[26]*a[33] + 2*a[28]*a[30] + a[29]^2, 2*a[26]*a[35] + a[30]^2, a[31]^2, 2*a[31]*a[33] + a[32]^2, 2*a[31]*a[35] + 2*a[32]*a[34] + a[33]^2, 2*a[33]*a[35] + a[34]^2, a[35]^2], [4 0 0 0; 3 1 0 0; … ; 0 0 1 3; 0 0 0 4])
+
+julia> sum(out[1][1:14,16:end])
+ERROR: MethodError: no method matching zero(::Type{QQMPolyRingElem})
+The function `zero` exists, but no method is defined for this combination of argument types.
+
+Closest candidates are:
+  zero(::Type{Union{}}, Any...)
+   @ Base number.jl:310
+  zero(::Type{Pkg.Resolve.FieldValue})
+   @ Pkg ~/.julia/juliaup/julia-1.11.3+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Pkg/src/Resolve/fieldvalues.jl:38
+  zero(::Type{Dates.Time})
+   @ Dates ~/.julia/juliaup/julia-1.11.3+0.aarch64.apple.darwin14/share/julia/stdlib/v1.11/Dates/src/types.jl:460
+  ...
+
+Stacktrace:
+  [1] reduce_empty(::typeof(+), ::Type{QQMPolyRingElem})
+    @ Base ./reduce.jl:343
+  [2] reduce_empty(::typeof(Base.add_sum), ::Type{QQMPolyRingElem})
+    @ Base ./reduce.jl:350
+  [3] mapreduce_empty(::typeof(identity), op::Function, T::Type)
+    @ Base ./reduce.jl:369
+  [4] reduce_empty(op::Base.MappingRF{typeof(identity), typeof(Base.add_sum)}, ::Type{QQMPolyRingElem})
+    @ Base ./reduce.jl:358
+  [5] reduce_empty_iter
+    @ ./reduce.jl:381 [inlined]
+  [6] mapreduce_empty_iter(f::Function, op::Function, itr::Matrix{QQMPolyRingElem}, ItrEltype::Base.HasEltype)
+    @ Base ./reduce.jl:377
+  [7] _mapreduce(f::typeof(identity), op::typeof(Base.add_sum), ::IndexLinear, A::Matrix{QQMPolyRingElem})
+    @ Base ./reduce.jl:429
+  [8] _mapreduce_dim
+    @ ./reducedim.jl:337 [inlined]
+  [9] mapreduce
+    @ ./reducedim.jl:329 [inlined]
+ [10] _sum
+    @ ./reducedim.jl:987 [inlined]
+ [11] _sum
+    @ ./reducedim.jl:986 [inlined]
+ [12] sum(a::Matrix{QQMPolyRingElem})
+    @ Base ./reducedim.jl:982
+ [13] top-level scope
+    @ REPL[97]:1
+
+help?> sum
+search: sum sum! sub cumsum Enum dump iscm sub!
+
+  sum(f, itr; [init])
+
+  Sum the results of calling function f on each element of itr.
+
+  The return type is Int for signed integers of less than system word
+  size, and UInt for unsigned integers of less than system word size. For
+  all other arguments, a common return type is found to which all
+  arguments are promoted.
+
+  The value returned for empty itr can be specified by init. It must be
+  the additive identity (i.e. zero) as it is unspecified whether init is
+  used for non-empty collections.
+
+  │ Julia 1.6
+  │
+  │  Keyword argument init requires Julia 1.6 or later.
+
+  Examples
+  ≡≡≡≡≡≡≡≡
+
+  julia> sum(abs2, [2; 3; 4])
+  29
+
+  Note the important difference between sum(A) and reduce(+, A) for arrays
+  with small integer eltype:
+
+  julia> sum(Int8[100, 28])
+  128
+  
+  julia> reduce(+, Int8[100, 28])
+  -128
+
+  In the former case, the integers are widened to system word size and
+  therefore the result is 128. In the latter case, no such widening
+  happens and integer overflow results in -128.
+
+  ────────────────────────────────────────────────────────────────────────
+
+  sum(itr; [init])
+
+  Return the sum of all elements in a collection.
+
+  The return type is Int for signed integers of less than system word
+  size, and UInt for unsigned integers of less than system word size. For
+  all other arguments, a common return type is found to which all
+  arguments are promoted.
+
+  The value returned for empty itr can be specified by init. It must be
+  the additive identity (i.e. zero) as it is unspecified whether init is
+  used for non-empty collections.
+
+  │ Julia 1.6
+  │
+  │  Keyword argument init requires Julia 1.6 or later.
+
+  See also: reduce, mapreduce, count, union.
+
+  Examples
+  ≡≡≡≡≡≡≡≡
+
+  julia> sum(1:20)
+  210
+  
+  julia> sum(1:20; init = 0.0)
+  210.0
+
+  ────────────────────────────────────────────────────────────────────────
+
+  sum(A::AbstractArray; dims)
+
+  Sum elements of an array over the given dimensions.
+
+  Examples
+  ≡≡≡≡≡≡≡≡
+
+  julia> A = [1 2; 3 4]
+  2×2 Matrix{Int64}:
+   1  2
+   3  4
+  
+  julia> sum(A, dims=1)
+  1×2 Matrix{Int64}:
+   4  6
+  
+  julia> sum(A, dims=2)
+  2×1 Matrix{Int64}:
+   3
+   7
+
+  ────────────────────────────────────────────────────────────────────────
+
+  sum(f, A::AbstractArray; dims)
+
+  Sum the results of calling function f on each element of an array over
+  the given dimensions.
+
+  Examples
+  ≡≡≡≡≡≡≡≡
+
+  julia> A = [1 2; 3 4]
+  2×2 Matrix{Int64}:
+   1  2
+   3  4
+  
+  julia> sum(abs2, A, dims=1)
+  1×2 Matrix{Int64}:
+   10  20
+  
+  julia> sum(abs2, A, dims=2)
+  2×1 Matrix{Int64}:
+    5
+   25
+
+  ────────────────────────────────────────────────────────────────────────
+
+  sum(M::SubModuleOfFreeModule, N::SubModuleOfFreeModule)
+
+  Compute M+N.
+
+  ────────────────────────────────────────────────────────────────────────
+
+  sum(M::SubquoModule{T},N::SubquoModule{T}) where T
+
+  Given subquotients M and N such that ambient_module(M) ==
+  ambient_module(N), return the sum of M and N regarded as submodules of
+  the common ambient module.
+
+  Additionally, return the inclusion maps M \to M + N and N \to M + N.
+
+  Examples
+  ≡≡≡≡≡≡≡≡
+
+  julia> R, (x, y, z) = polynomial_ring(QQ, [:x, :y, :z])
+  (Multivariate polynomial ring in 3 variables over QQ, QQMPolyRingElem[x, y, z])
+  
+  julia> F = free_module(R, 1)
+  Free module of rank 1 over R
+  
+  julia> AM = R[x;]
+  [x]
+  
+  julia> BM = R[x^2; y^3; z^4]
+  [x^2]
+  [y^3]
+  [z^4]
+  
+  julia> M = SubquoModule(F, AM, BM)
+  Subquotient of submodule with 1 generator
+    1: x*e[1]
+  by submodule with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1]
+  
+  julia> AN = R[y;]
+  [y]
+  
+  julia> BN = R[x^2; y^3; z^4]
+  [x^2]
+  [y^3]
+  [z^4]
+  
+  julia> N = SubquoModule(F, AN, BN)
+  Subquotient of submodule with 1 generator
+    1: y*e[1]
+  by submodule with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1]
+  
+  julia> O = sum(M, N);
+  
+  julia> O[1]
+  Subquotient of submodule with 2 generators
+    1: x*e[1]
+    2: y*e[1]
+  by submodule with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1]
+  
+  julia> O[2]
+  Module homomorphism
+    from M
+    to subquotient of submodule with 2 generators
+      1: x*e[1]
+      2: y*e[1]
+    by submodule with 3 generators
+      1: x^2*e[1]
+      2: y^3*e[1]
+      3: z^4*e[1]
+  
+  julia> O[3]
+  Module homomorphism
+    from N
+    to subquotient of submodule with 2 generators
+      1: x*e[1]
+      2: y*e[1]
+    by submodule with 3 generators
+      1: x^2*e[1]
+      2: y^3*e[1]
+      3: z^4*e[1]
+
+  julia> Rg, (x, y, z) = graded_polynomial_ring(QQ, [:x, :y, :z]);
+  
+  julia> F = graded_free_module(Rg, 1);
+  
+  julia> AM = Rg[x;];
+  
+  julia> BM = Rg[x^2; y^3; z^4];
+  
+  julia> M = SubquoModule(F, AM, BM)
+  Graded subquotient of graded submodule of F with 1 generator
+    1: x*e[1]
+  by graded submodule of F with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1]
+  
+  julia> AN = Rg[y;];
+  
+  julia> BN = Rg[x^2; y^3; z^4];
+  
+  julia> N = SubquoModule(F, AN, BN)
+  Graded subquotient of graded submodule of F with 1 generator
+    1: y*e[1]
+  by graded submodule of F with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1]
+  
+  julia> sum(M, N)
+  (Graded subquotient of graded submodule of F with 2 generators
+    1: x*e[1]
+    2: y*e[1]
+  by graded submodule of F with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1], Hom: M -> graded subquotient of graded submodule of F with 2 generators
+    1: x*e[1]
+    2: y*e[1]
+  by graded submodule of F with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1], Hom: N -> graded subquotient of graded submodule of F with 2 generators
+    1: x*e[1]
+    2: y*e[1]
+  by graded submodule of F with 3 generators
+    1: x^2*e[1]
+    2: y^3*e[1]
+    3: z^4*e[1])
+  
+
+julia> sum(out[1][1:14,16:end], R(0))
+ERROR: MethodError: no method matching iterate(::QQMPolyRingElem)
+The function `iterate` exists, but no method is defined for this combination of argument types.
+
+Closest candidates are:
+  iterate(::Polymake.Polydb.Cursor{Polymake.LibPolymake.BigObject})
+   @ Polymake ~/.julia/packages/Polymake/9Agxk/src/polydb.jl:328
+  iterate(::Polymake.Polydb.Cursor{Polymake.LibPolymake.BigObject}, ::Nothing)
+   @ Polymake ~/.julia/packages/Polymake/9Agxk/src/polydb.jl:328
+  iterate(::Polymake.Polydb.Cursor{Mongoc.BSON})
+   @ Polymake ~/.julia/packages/Polymake/9Agxk/src/polydb.jl:345
+  ...
+
+Stacktrace:
+ [1] _foldl_impl(op::Base.MappingRF{Matrix{…}, Base.BottomRF{…}}, init::Base._InitialValue, itr::QQMPolyRingElem)
+   @ Base ./reduce.jl:56
+ [2] foldl_impl(op::Base.MappingRF{Matrix{…}, Base.BottomRF{…}}, nt::Base._InitialValue, itr::QQMPolyRingElem)
+   @ Base ./reduce.jl:48
+ [3] mapfoldl_impl(f::Matrix{QQMPolyRingElem}, op::typeof(Base.add_sum), nt::Base._InitialValue, itr::QQMPolyRingElem)
+   @ Base ./reduce.jl:44
+ [4] mapfoldl(f::Matrix{QQMPolyRingElem}, op::Function, itr::QQMPolyRingElem; init::Base._InitialValue)
+   @ Base ./reduce.jl:175
+ [5] mapreduce(f::Matrix{QQMPolyRingElem}, op::Function, itr::QQMPolyRingElem; kw::@Kwargs{})
+   @ Base ./reduce.jl:307
+ [6] sum(f::Matrix{QQMPolyRingElem}, a::QQMPolyRingElem; kw::@Kwargs{})
+   @ Base ./reduce.jl:532
+ [7] top-level scope
+   @ REPL[99]:1
+Some type information was truncated. Use `show(err)` to see complete types.
+
+julia> out[1][1:14,16:end]
+14×0 Matrix{QQMPolyRingElem}
+
+julia> sum(out[1][1:14])
+a[1]^2 + 2*a[1]*a[5] + 2*a[1]*a[8] + 2*a[1]*a[10] + 2*a[1]*a[21] + 2*a[1]*a[24] + 2*a[1]*a[26] + 2*a[1]*a[31] + 2*a[1]*a[33] + 2*a[1]*a[35] + a[2]^2 + 2*a[2]*a[11] + 2*a[2]*a[14] + 2*a[2]*a[16] + a[3]^2 + 2*a[3]*a[12] + 2*a[3]*a[17] + 2*a[3]*a[19] + a[4]^2 + 2*a[4]*a[13] + 2*a[4]*a[18] + 2*a[4]*a[20] + a[5]^2 + 2*a[5]*a[8] + 2*a[5]*a[10] + 2*a[5]*a[21] + 2*a[5]*a[24] + 2*a[5]*a[26] + 2*a[5]*a[31] + a[6]^2 + 2*a[6]*a[22] + 2*a[6]*a[27] + a[7]^2 + 2*a[7]*a[23] + a[8]^2 + 2*a[8]*a[10] + 2*a[8]*a[21] + 2*a[8]*a[24] + a[9]^2 + a[10]^2 + 2*a[10]*a[21] + a[11]^2 + 2*a[11]*a[14] + 2*a[11]*a[16] + a[12]^2 + 2*a[12]*a[17] + a[13]^2 + a[14]^2
+
+julia> sum(out[1][1:14]) + sum(out[1][16:end])
+a[1]^2 + 2*a[1]*a[5] + 2*a[1]*a[8] + 2*a[1]*a[10] + 2*a[1]*a[21] + 2*a[1]*a[24] + 2*a[1]*a[26] + 2*a[1]*a[31] + 2*a[1]*a[33] + 2*a[1]*a[35] + a[2]^2 + 2*a[2]*a[11] + 2*a[2]*a[14] + 2*a[2]*a[16] + a[3]^2 + 2*a[3]*a[12] + 2*a[3]*a[17] + 2*a[3]*a[19] + a[4]^2 + 2*a[4]*a[13] + 2*a[4]*a[18] + 2*a[4]*a[20] + a[5]^2 + 2*a[5]*a[8] + 2*a[5]*a[10] + 2*a[5]*a[21] + 2*a[5]*a[24] + 2*a[5]*a[26] + 2*a[5]*a[31] + 2*a[5]*a[35] + a[6]^2 + 2*a[6]*a[22] + 2*a[6]*a[27] + a[7]^2 + 2*a[7]*a[23] + 2*a[7]*a[30] + a[8]^2 + 2*a[8]*a[10] + 2*a[8]*a[21] + 2*a[8]*a[24] + 2*a[8]*a[31] + 2*a[8]*a[33] + 2*a[8]*a[35] + a[9]^2 + 2*a[9]*a[32] + 2*a[9]*a[34] + a[10]^2 + 2*a[10]*a[21] + 2*a[10]*a[26] + 2*a[10]*a[31] + 2*a[10]*a[33] + 2*a[10]*a[35] + a[11]^2 + 2*a[11]*a[14] + 2*a[11]*a[16] + a[12]^2 + 2*a[12]*a[17] + a[13]^2 + 2*a[13]*a[20] + a[14]^2 + a[16]^2 + a[17]^2 + 2*a[17]*a[19] + a[18]^2 + 2*a[18]*a[20] + a[19]^2 + a[20]^2 + a[21]^2 + 2*a[21]*a[24] + 2*a[21]*a[26] + 2*a[21]*a[31] + 2*a[21]*a[33] + 2*a[21]*a[35] + a[22]^2 + 2*a[22]*a[27] + 2*a[22]*a[29] + a[23]^2 + 2*a[23]*a[28] + 2*a[23]*a[30] + a[24]^2 + 2*a[24]*a[26] + 2*a[24]*a[31] + 2*a[24]*a[33] + 2*a[24]*a[35] + a[25]^2 + 2*a[25]*a[32] + 2*a[25]*a[34] + a[26]^2 + 2*a[26]*a[31] + 2*a[26]*a[33] + 2*a[26]*a[35] + a[27]^2 + 2*a[27]*a[29] + a[28]^2 + 2*a[28]*a[30] + a[29]^2 + a[30]^2 + a[31]^2 + 2*a[31]*a[33] + 2*a[31]*a[35] + a[32]^2 + 2*a[32]*a[34] + a[33]^2 + 2*a[33]*a[35] + a[34]^2 + a[35]^2
+
+julia> out[1][15]
+2*a[5]*a[33] + 2*a[6]*a[29] + 2*a[7]*a[28] + 2*a[8]*a[26] + 2*a[9]*a[25] + 2*a[10]*a[24] + 2*a[12]*a[19] + 2*a[13]*a[18] + 2*a[14]*a[16] + a[15]^2
+
+julia> sum(out[1])
+a[1]^2 + 2*a[1]*a[5] + 2*a[1]*a[8] + 2*a[1]*a[10] + 2*a[1]*a[21] + 2*a[1]*a[24] + 2*a[1]*a[26] + 2*a[1]*a[31] + 2*a[1]*a[33] + 2*a[1]*a[35] + a[2]^2 + 2*a[2]*a[11] + 2*a[2]*a[14] + 2*a[2]*a[16] + a[3]^2 + 2*a[3]*a[12] + 2*a[3]*a[17] + 2*a[3]*a[19] + a[4]^2 + 2*a[4]*a[13] + 2*a[4]*a[18] + 2*a[4]*a[20] + a[5]^2 + 2*a[5]*a[8] + 2*a[5]*a[10] + 2*a[5]*a[21] + 2*a[5]*a[24] + 2*a[5]*a[26] + 2*a[5]*a[31] + 2*a[5]*a[33] + 2*a[5]*a[35] + a[6]^2 + 2*a[6]*a[22] + 2*a[6]*a[27] + 2*a[6]*a[29] + a[7]^2 + 2*a[7]*a[23] + 2*a[7]*a[28] + 2*a[7]*a[30] + a[8]^2 + 2*a[8]*a[10] + 2*a[8]*a[21] + 2*a[8]*a[24] + 2*a[8]*a[26] + 2*a[8]*a[31] + 2*a[8]*a[33] + 2*a[8]*a[35] + a[9]^2 + 2*a[9]*a[25] + 2*a[9]*a[32] + 2*a[9]*a[34] + a[10]^2 + 2*a[10]*a[21] + 2*a[10]*a[24] + 2*a[10]*a[26] + 2*a[10]*a[31] + 2*a[10]*a[33] + 2*a[10]*a[35] + a[11]^2 + 2*a[11]*a[14] + 2*a[11]*a[16] + a[12]^2 + 2*a[12]*a[17] + 2*a[12]*a[19] + a[13]^2 + 2*a[13]*a[18] + 2*a[13]*a[20] + a[14]^2 + 2*a[14]*a[16] + a[15]^2 + a[16]^2 + a[17]^2 + 2*a[17]*a[19] + a[18]^2 + 2*a[18]*a[20] + a[19]^2 + a[20]^2 + a[21]^2 + 2*a[21]*a[24] + 2*a[21]*a[26] + 2*a[21]*a[31] + 2*a[21]*a[33] + 2*a[21]*a[35] + a[22]^2 + 2*a[22]*a[27] + 2*a[22]*a[29] + a[23]^2 + 2*a[23]*a[28] + 2*a[23]*a[30] + a[24]^2 + 2*a[24]*a[26] + 2*a[24]*a[31] + 2*a[24]*a[33] + 2*a[24]*a[35] + a[25]^2 + 2*a[25]*a[32] + 2*a[25]*a[34] + a[26]^2 + 2*a[26]*a[31] + 2*a[26]*a[33] + 2*a[26]*a[35] + a[27]^2 + 2*a[27]*a[29] + a[28]^2 + 2*a[28]*a[30] + a[29]^2 + a[30]^2 + a[31]^2 + 2*a[31]*a[33] + 2*a[31]*a[35] + a[32]^2 + 2*a[32]*a[34] + a[33]^2 + 2*a[33]*a[35] + a[34]^2 + a[35]^2
+
+julia> f
+a[1]*x^4 + a[2]*x^3*y + a[3]*x^3*z + a[4]*x^3*w + a[5]*x^2*y^2 + a[6]*x^2*y*z + a[7]*x^2*y*w + a[8]*x^2*z^2 + a[9]*x^2*z*w + a[10]*x^2*w^2 + a[11]*x*y^3 + a[12]*x*y^2*z + a[13]*x*y^2*w + a[14]*x*y*z^2 + a[15]*x*y*z*w + a[16]*x*y*w^2 + a[17]*x*z^3 + a[18]*x*z^2*w + a[19]*x*z*w^2 + a[20]*x*w^3 + a[21]*y^4 + a[22]*y^3*z + a[23]*y^3*w + a[24]*y^2*z^2 + a[25]*y^2*z*w + a[26]*y^2*w^2 + a[27]*y*z^3 + a[28]*y*z^2*w + a[29]*y*z*w^2 + a[30]*y*w^3 + a[31]*z^4 + a[32]*z^3*w + a[33]*z^2*w^2 + a[34]*z*w^3 + a[35]*w^4
+
+julia> trace = sum(out[1])
+a[1]^2 + 2*a[1]*a[5] + 2*a[1]*a[8] + 2*a[1]*a[10] + 2*a[1]*a[21] + 2*a[1]*a[24] + 2*a[1]*a[26] + 2*a[1]*a[31] + 2*a[1]*a[33] + 2*a[1]*a[35] + a[2]^2 + 2*a[2]*a[11] + 2*a[2]*a[14] + 2*a[2]*a[16] + a[3]^2 + 2*a[3]*a[12] + 2*a[3]*a[17] + 2*a[3]*a[19] + a[4]^2 + 2*a[4]*a[13] + 2*a[4]*a[18] + 2*a[4]*a[20] + a[5]^2 + 2*a[5]*a[8] + 2*a[5]*a[10] + 2*a[5]*a[21] + 2*a[5]*a[24] + 2*a[5]*a[26] + 2*a[5]*a[31] + 2*a[5]*a[33] + 2*a[5]*a[35] + a[6]^2 + 2*a[6]*a[22] + 2*a[6]*a[27] + 2*a[6]*a[29] + a[7]^2 + 2*a[7]*a[23] + 2*a[7]*a[28] + 2*a[7]*a[30] + a[8]^2 + 2*a[8]*a[10] + 2*a[8]*a[21] + 2*a[8]*a[24] + 2*a[8]*a[26] + 2*a[8]*a[31] + 2*a[8]*a[33] + 2*a[8]*a[35] + a[9]^2 + 2*a[9]*a[25] + 2*a[9]*a[32] + 2*a[9]*a[34] + a[10]^2 + 2*a[10]*a[21] + 2*a[10]*a[24] + 2*a[10]*a[26] + 2*a[10]*a[31] + 2*a[10]*a[33] + 2*a[10]*a[35] + a[11]^2 + 2*a[11]*a[14] + 2*a[11]*a[16] + a[12]^2 + 2*a[12]*a[17] + 2*a[12]*a[19] + a[13]^2 + 2*a[13]*a[18] + 2*a[13]*a[20] + a[14]^2 + 2*a[14]*a[16] + a[15]^2 + a[16]^2 + a[17]^2 + 2*a[17]*a[19] + a[18]^2 + 2*a[18]*a[20] + a[19]^2 + a[20]^2 + a[21]^2 + 2*a[21]*a[24] + 2*a[21]*a[26] + 2*a[21]*a[31] + 2*a[21]*a[33] + 2*a[21]*a[35] + a[22]^2 + 2*a[22]*a[27] + 2*a[22]*a[29] + a[23]^2 + 2*a[23]*a[28] + 2*a[23]*a[30] + a[24]^2 + 2*a[24]*a[26] + 2*a[24]*a[31] + 2*a[24]*a[33] + 2*a[24]*a[35] + a[25]^2 + 2*a[25]*a[32] + 2*a[25]*a[34] + a[26]^2 + 2*a[26]*a[31] + 2*a[26]*a[33] + 2*a[26]*a[35] + a[27]^2 + 2*a[27]*a[29] + a[28]^2 + 2*a[28]*a[30] + a[29]^2 + a[30]^2 + a[31]^2 + 2*a[31]*a[33] + 2*a[31]*a[35] + a[32]^2 + 2*a[32]*a[34] + a[33]^2 + 2*a[33]*a[35] + a[34]^2 + a[35]^2
+
+julia> substitute(trace,a[1] => 1)
+ERROR: UndefVarError: `substitute` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+Stacktrace:
+ [1] top-level scope
+   @ REPL[107]:1
+
+julia> fermat_coefs = zeros(QQ,35)
+35-element Vector{QQFieldElem}:
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+
+julia> fermat_coefs[[1,21,31,35]) .= 1
+ERROR: ParseError:
+# Error @ REPL[109]:1:26
+fermat_coefs[[1,21,31,35]) .= 1
+#                        └ ── Expected `]`
+Stacktrace:
+ [1] top-level scope
+   @ none:1
+
+julia> fermat_coefs[[1,21,31,35]] .= 1
+4-element view(::Vector{QQFieldElem}, [1, 21, 31, 35]) with eltype QQFieldElem:
+ 1
+ 1
+ 1
+ 1
+
+julia> fermat_coefs
+35-element Vector{QQFieldElem}:
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 0
+ 0
+ 0
+ 1
+
+julia> substitute(trace,fermat_coefs)
+ERROR: UndefVarError: `substitute` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+Stacktrace:
+ [1] top-level scope
+   @ REPL[112]:1
+
+julia> evaluate(trace,fermat_coefs)
+16
+
+julia> fermat_coefs[1] = 2
+2
+
+julia> evaluate(trace,fermat_coefs)
+25
+
+julia> sum(out[1][1:14]) + sum(out[1][16:end])
+a[1]^2 + 2*a[1]*a[5] + 2*a[1]*a[8] + 2*a[1]*a[10] + 2*a[1]*a[21] + 2*a[1]*a[24] + 2*a[1]*a[26] + 2*a[1]*a[31] + 2*a[1]*a[33] + 2*a[1]*a[35] + a[2]^2 + 2*a[2]*a[11] + 2*a[2]*a[14] + 2*a[2]*a[16] + a[3]^2 + 2*a[3]*a[12] + 2*a[3]*a[17] + 2*a[3]*a[19] + a[4]^2 + 2*a[4]*a[13] + 2*a[4]*a[18] + 2*a[4]*a[20] + a[5]^2 + 2*a[5]*a[8] + 2*a[5]*a[10] + 2*a[5]*a[21] + 2*a[5]*a[24] + 2*a[5]*a[26] + 2*a[5]*a[31] + 2*a[5]*a[35] + a[6]^2 + 2*a[6]*a[22] + 2*a[6]*a[27] + a[7]^2 + 2*a[7]*a[23] + 2*a[7]*a[30] + a[8]^2 + 2*a[8]*a[10] + 2*a[8]*a[21] + 2*a[8]*a[24] + 2*a[8]*a[31] + 2*a[8]*a[33] + 2*a[8]*a[35] + a[9]^2 + 2*a[9]*a[32] + 2*a[9]*a[34] + a[10]^2 + 2*a[10]*a[21] + 2*a[10]*a[26] + 2*a[10]*a[31] + 2*a[10]*a[33] + 2*a[10]*a[35] + a[11]^2 + 2*a[11]*a[14] + 2*a[11]*a[16] + a[12]^2 + 2*a[12]*a[17] + a[13]^2 + 2*a[13]*a[20] + a[14]^2 + a[16]^2 + a[17]^2 + 2*a[17]*a[19] + a[18]^2 + 2*a[18]*a[20] + a[19]^2 + a[20]^2 + a[21]^2 + 2*a[21]*a[24] + 2*a[21]*a[26] + 2*a[21]*a[31] + 2*a[21]*a[33] + 2*a[21]*a[35] + a[22]^2 + 2*a[22]*a[27] + 2*a[22]*a[29] + a[23]^2 + 2*a[23]*a[28] + 2*a[23]*a[30] + a[24]^2 + 2*a[24]*a[26] + 2*a[24]*a[31] + 2*a[24]*a[33] + 2*a[24]*a[35] + a[25]^2 + 2*a[25]*a[32] + 2*a[25]*a[34] + a[26]^2 + 2*a[26]*a[31] + 2*a[26]*a[33] + 2*a[26]*a[35] + a[27]^2 + 2*a[27]*a[29] + a[28]^2 + 2*a[28]*a[30] + a[29]^2 + a[30]^2 + a[31]^2 + 2*a[31]*a[33] + 2*a[31]*a[35] + a[32]^2 + 2*a[32]*a[34] + a[33]^2 + 2*a[33]*a[35] + a[34]^2 + a[35]^2
+
+julia> congruent_formula = sum(out[1][1:14]) + sum(out[1][16:end])
+a[1]^2 + 2*a[1]*a[5] + 2*a[1]*a[8] + 2*a[1]*a[10] + 2*a[1]*a[21] + 2*a[1]*a[24] + 2*a[1]*a[26] + 2*a[1]*a[31] + 2*a[1]*a[33] + 2*a[1]*a[35] + a[2]^2 + 2*a[2]*a[11] + 2*a[2]*a[14] + 2*a[2]*a[16] + a[3]^2 + 2*a[3]*a[12] + 2*a[3]*a[17] + 2*a[3]*a[19] + a[4]^2 + 2*a[4]*a[13] + 2*a[4]*a[18] + 2*a[4]*a[20] + a[5]^2 + 2*a[5]*a[8] + 2*a[5]*a[10] + 2*a[5]*a[21] + 2*a[5]*a[24] + 2*a[5]*a[26] + 2*a[5]*a[31] + 2*a[5]*a[35] + a[6]^2 + 2*a[6]*a[22] + 2*a[6]*a[27] + a[7]^2 + 2*a[7]*a[23] + 2*a[7]*a[30] + a[8]^2 + 2*a[8]*a[10] + 2*a[8]*a[21] + 2*a[8]*a[24] + 2*a[8]*a[31] + 2*a[8]*a[33] + 2*a[8]*a[35] + a[9]^2 + 2*a[9]*a[32] + 2*a[9]*a[34] + a[10]^2 + 2*a[10]*a[21] + 2*a[10]*a[26] + 2*a[10]*a[31] + 2*a[10]*a[33] + 2*a[10]*a[35] + a[11]^2 + 2*a[11]*a[14] + 2*a[11]*a[16] + a[12]^2 + 2*a[12]*a[17] + a[13]^2 + 2*a[13]*a[20] + a[14]^2 + a[16]^2 + a[17]^2 + 2*a[17]*a[19] + a[18]^2 + 2*a[18]*a[20] + a[19]^2 + a[20]^2 + a[21]^2 + 2*a[21]*a[24] + 2*a[21]*a[26] + 2*a[21]*a[31] + 2*a[21]*a[33] + 2*a[21]*a[35] + a[22]^2 + 2*a[22]*a[27] + 2*a[22]*a[29] + a[23]^2 + 2*a[23]*a[28] + 2*a[23]*a[30] + a[24]^2 + 2*a[24]*a[26] + 2*a[24]*a[31] + 2*a[24]*a[33] + 2*a[24]*a[35] + a[25]^2 + 2*a[25]*a[32] + 2*a[25]*a[34] + a[26]^2 + 2*a[26]*a[31] + 2*a[26]*a[33] + 2*a[26]*a[35] + a[27]^2 + 2*a[27]*a[29] + a[28]^2 + 2*a[28]*a[30] + a[29]^2 + a[30]^2 + a[31]^2 + 2*a[31]*a[33] + 2*a[31]*a[35] + a[32]^2 + 2*a[32]*a[34] + a[33]^2 + 2*a[33]*a[35] + a[34]^2 + a[35]^2
+
+julia> random_mod_3 = rand(QQ.(0:2),35)
+35-element Vector{QQFieldElem}:
+ 1
+ 0
+ 2
+ 0
+ 2
+ 0
+ 2
+ 2
+ 0
+ 2
+ 1
+ 0
+ 1
+ 2
+ 1
+ 1
+ 2
+ 2
+ 1
+ 2
+ 2
+ 1
+ 1
+ 2
+ 0
+ 0
+ 2
+ 1
+ 1
+ 1
+ 0
+ 2
+ 0
+ 0
+ 2
+
+julia> random_mod_3 = rand(QQ.(0:2),35);
+
+julia> random_mod_3 = rand(QQ.(0:2),35)
+35-element Vector{QQFieldElem}:
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 2
+ 1
+ 0
+ 1
+ 1
+ 1
+ 0
+ 0
+ 2
+ 2
+ 1
+ 2
+ 1
+ 1
+ 2
+ 1
+ 1
+ 2
+ 0
+ 2
+ 2
+ 0
+ 2
+ 2
+ 2
+ 2
+ 0
+ 0
+ 2
+
+julia> evaluate(congruent_formula,random_mod_3)
+297
+
+julia> 297 % 3
+0
+
+julia> zero_example = random_mod_3
+35-element Vector{QQFieldElem}:
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 2
+ 1
+ 0
+ 1
+ 1
+ 1
+ 0
+ 0
+ 2
+ 2
+ 1
+ 2
+ 1
+ 1
+ 2
+ 1
+ 1
+ 2
+ 0
+ 2
+ 2
+ 0
+ 2
+ 2
+ 2
+ 2
+ 0
+ 0
+ 2
+
+julia> out[15]
+ERROR: BoundsError: attempt to access Tuple{Vector{QQMPolyRingElem}, Matrix{Int64}} at index [15]
+Stacktrace:
+ [1] getindex(t::Tuple, i::Int64)
+   @ Base ./tuple.jl:31
+ [2] top-level scope
+   @ REPL[124]:1
+
+julia> out[1][15]
+2*a[5]*a[33] + 2*a[6]*a[29] + 2*a[7]*a[28] + 2*a[8]*a[26] + 2*a[9]*a[25] + 2*a[10]*a[24] + 2*a[12]*a[19] + 2*a[13]*a[18] + 2*a[14]*a[16] + a[15]^2
+
+julia> coefs_that_matter = [5,33,6,19,7,28,8,26,9,25,10,24,12,19,13,18,14,16,15]
+19-element Vector{Int64}:
+  5
+ 33
+  6
+ 19
+  7
+ 28
+  8
+ 26
+  9
+ 25
+ 10
+ 24
+ 12
+ 19
+ 13
+ 18
+ 14
+ 16
+ 15
+
+julia> random_mod_3[coefs_that_matter] .= 0
+19-element view(::Vector{QQFieldElem}, [5, 33, 6, 19, 7, 28, 8, 26, 9, 25, 10, 24, 12, 19, 13, 18, 14, 16, 15]) with eltype QQFieldElem:
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+
+julia> random_mod_3
+35-element Vector{QQFieldElem}:
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 0
+ 0
+ 1
+ 2
+ 1
+ 1
+ 0
+ 0
+ 0
+ 2
+ 0
+ 2
+ 2
+ 2
+ 2
+ 0
+ 0
+ 2
+
+julia> evaluate(congruent_formula,random_mod_3)
+119
+
+julia> 119 % 3
+2
+
+julia> actual_counterexample = random_mod_3
+35-element Vector{QQFieldElem}:
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 0
+ 0
+ 1
+ 2
+ 1
+ 1
+ 0
+ 0
+ 0
+ 2
+ 0
+ 2
+ 2
+ 2
+ 2
+ 0
+ 0
+ 2
+
+julia> evaluate(trace,random_mod_3)
+119
+
+julia> random_mod_3 = rand(QQ.(0:2),35)
+35-element Vector{QQFieldElem}:
+ 0
+ 2
+ 2
+ 0
+ 0
+ 2
+ 1
+ 2
+ 0
+ 0
+ 1
+ 1
+ 0
+ 2
+ 1
+ 2
+ 1
+ 0
+ 2
+ 2
+ 2
+ 2
+ 2
+ 2
+ 0
+ 2
+ 2
+ 2
+ 1
+ 1
+ 1
+ 2
+ 2
+ 1
+ 2
+
+julia> evalute(trace,random_mod_3) % 3
+ERROR: UndefVarError: `evalute` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+Stacktrace:
+ [1] top-level scope
+   @ REPL[134]:1
+
+julia> evaluate(trace,random_mod_3) % 3
+ERROR: MethodError: no method matching rem(::QQFieldElem, ::Int64)
+The function `rem` exists, but no method is defined for this combination of argument types.
+
+Closest candidates are:
+  rem(::Any, ::Any, ::RoundingMode{:FromZero})
+   @ Base div.jl:105
+  rem(::Any, ::Any, ::RoundingMode{:Nearest})
+   @ Base div.jl:102
+  rem(::Any, ::Any, ::RoundingMode{:Up})
+   @ Base div.jl:101
+  ...
+
+Stacktrace:
+ [1] top-level scope
+   @ REPL[135]:1
+
+julia> evaluate(trace,random_mod_3)
+353
+
+julia> 353%3
+2
+
+julia> evaluate(out[15],random_mod_3)
+ERROR: BoundsError: attempt to access Tuple{Vector{QQMPolyRingElem}, Matrix{Int64}} at index [15]
+Stacktrace:
+ [1] getindex(t::Tuple, i::Int64)
+   @ Base ./tuple.jl:31
+ [2] top-level scope
+   @ REPL[138]:1
+
+julia> evaluate(out[15],random_mod_3[coefficients_that_matter])
+ERROR: BoundsError: attempt to access Tuple{Vector{QQMPolyRingElem}, Matrix{Int64}} at index [15]
+Stacktrace:
+ [1] getindex(t::Tuple, i::Int64)
+   @ Base ./tuple.jl:31
+ [2] top-level scope
+   @ REPL[139]:1
+
+julia> evaluate(out[1][15],random_mod_3)
+29
+
+julia> 29 % 3
+2
+
+julia> random_mod_3 = rand(QQ.(0:2),35)
+35-element Vector{QQFieldElem}:
+ 2
+ 2
+ 1
+ 1
+ 1
+ 0
+ 1
+ 1
+ 0
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 1
+ 0
+ 2
+ 0
+ 1
+ 1
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 2
+ 2
+ 1
+ 1
+ 1
+ 1
+
+julia> evaluate(trace,random_mod_3)
+222
+
+julia> evaluate(out[1][15],random_mod_3)
+10
+
+julia> 22 % 3
+1
+
+julia> 222 % 3
+0
+
+julia> real_actual_counterexample = random_mod_3
+35-element Vector{QQFieldElem}:
+ 2
+ 2
+ 1
+ 1
+ 1
+ 0
+ 1
+ 1
+ 0
+ 1
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 1
+ 1
+ 0
+ 2
+ 0
+ 1
+ 1
+ 2
+ 1
+ 2
+ 1
+ 0
+ 0
+ 2
+ 2
+ 1
+ 1
+ 1
+ 1
+
+julia> evaluate(f,random_mod_3)
+ERROR: Incorrect number of values in evaluation
+Stacktrace:
+ [1] error(s::String)
+   @ Base ./error.jl:35
+ [2] evaluate(a::AbstractAlgebra.Generic.MPoly{QQMPolyRingElem}, vals::Vector{QQFieldElem})
+   @ AbstractAlgebra ~/.julia/packages/AbstractAlgebra/eNeG2/src/MPoly.jl:861
+ [3] top-level scope
+   @ REPL[148]:1
+
+julia>
