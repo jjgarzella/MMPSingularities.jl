@@ -1,20 +1,20 @@
-include("../src/MMPSingularities.jl")
-include("../src/RandomPolynomials.jl")
+#include("../src/MMPSingularities.jl")
+#include("../src/RandomPolynomials.jl")
+#
+#using Test
+#using CUDA
+#using Oscar
 
-using Test
-using CUDA
-using Oscar
-
-function run_tests()
-    test_K3_3() # Have not tested any of these heights with the
-    test_K3_5() # guaranteed working methods, we honestly have a 
-    test_K3_7() # pretty big problem if they aren't right
-    # test_K3_11()
-    # test_K3_13()
+function height_run_tests()
+    height_test_K3_3() # Have not tested any of these heights with the
+    height_test_K3_5() # guaranteed working methods, we honestly have a 
+    height_test_K3_7() # pretty big problem if they aren't right
+    # height_test_K3_11()
+    # height_test_K3_13()
     test_matrix()
 end
 
-function test_K3_3()
+function height_test_K3_3()
     n = 4
     p = 3
 
@@ -50,7 +50,7 @@ function test_K3_3()
     @test qfs_height_fn(finfty) > 10
 end
 
-function test_K3_5()
+function height_test_K3_5()
     n = 4
     p = 5
 
@@ -98,7 +98,7 @@ function test_K3_5()
     @test qfs_height_fn(finfty) > 10
 end
 
-function test_K3_7()
+function height_test_K3_7()
     n = 4
     p = 7
 
@@ -184,7 +184,7 @@ function test_K3_7()
     @test qfs_height_fn(finfty) > 10
 end
 
-function test_K3_11()
+function height_test_K3_11()
     n = 4
     p = 11
 
@@ -214,7 +214,7 @@ function test_K3_11()
     @test qfs_height_fn(ffive1) == 5
 end
 
-function test_K3_13()
+function height_test_K3_13()
     n = 4
     p = 13
 
@@ -244,7 +244,6 @@ function test_K3_13()
     @test qfs_height_fn(ffive1) == 5
 end
 
-using BenchmarkTools
 
 function test_matrix()
     n = 4
@@ -284,4 +283,3 @@ function test_matrix()
     # end
 end
 
-run_tests()

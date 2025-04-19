@@ -1,22 +1,22 @@
-include("../src/MMPSingularities.jl")
-include("../src/RandomPolynomials.jl")
+#include("../src/MMPSingularities.jl")
+#include("../src/RandomPolynomials.jl")
 
-using Test
-using CUDA
-using Oscar
+#using Test
+#using CUDA
+#using Oscar
 
-function run_tests()
-    test_K3_2()
-    test_K3_3()
-    test_K3_5()
-    test_K3_7()
-    # time_K3_5()
-    # time_K3_7()
-    # time_K3_11()
-    # time_K3_13()
+function delta1_run_tests()
+    delta1_test_K3_2()
+    delta1_test_K3_3()
+    delta1_test_K3_5()
+    delta1_test_K3_7()
+    # delta1_time_K3_5()
+    # delta1_time_K3_7()
+    # delta1_time_K3_11()
+    # delta1_time_K3_13()
 end
 
-function test_K3_2()
+function delta1_test_K3_2()
     n = 4
     p = 2
     R, vars = polynomial_ring(GF(p), n)
@@ -39,7 +39,7 @@ function test_K3_2()
     @test string(gpu_result) == string(oscar_result)
 end
 
-function test_K3_3()
+function delta1_test_K3_3()
     n = 4
     p = 3
     R, vars = polynomial_ring(GF(p), n)
@@ -60,7 +60,7 @@ function test_K3_3()
     @test string(gpu_result) == string(oscar_result)
 end
 
-function test_K3_5()
+function delta1_test_K3_5()
     n = 4
     p = 5
     R, vars = polynomial_ring(GF(p), n)
@@ -82,7 +82,7 @@ function test_K3_5()
     # @test gpu_result == oscar_result
 end
 
-function time_K3_5()
+function delta1_time_K3_5()
     n = 4
     p = 5
 
@@ -107,7 +107,7 @@ function time_K3_5()
     end
 end
 
-function test_K3_7()
+function delta1_test_K3_7()
     n = 4
     p = 7
     R, vars = polynomial_ring(GF(p), n)
@@ -128,7 +128,7 @@ function test_K3_7()
     @test string(gpu_result) == string(oscar_result)
 end
 
-function time_K3_7()
+function delta1_time_K3_7()
     n = 4
     p = 7
 
@@ -152,7 +152,7 @@ function time_K3_7()
     end
 end
 
-function time_K3_11()
+function delta1_time_K3_11()
     n = 4
     p = 11
     R, vars = polynomial_ring(GF(p), n)
@@ -171,7 +171,7 @@ function time_K3_11()
     return
 end
 
-function time_K3_13()
+function delta1_time_K3_13()
     n = 4
     p = 13
     R, vars = polynomial_ring(GF(p), n)
@@ -191,4 +191,3 @@ function time_K3_13()
 end
 
 
-run_tests()
