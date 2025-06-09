@@ -657,4 +657,75 @@ function isFSplit(I)
 end
 
 
-#end#module
+"""
+
+Examples
+
+```
+julia> p = 3
+
+julia> R, (x,y,z,w,u,v) = polynomial_ring(ZZ,6)
+
+julia> g1 = x^2*y^2*z^2*w^2*v^2*u^2*p + 2x^12 + y^6*x^6
+
+julia> in1FInjectiveIdeal(g1,3)
+false
+
+julia> g2 = x^2*y^2*z^2*w^2*v^2*u^2*p^2 + 2x^12 + y^6*x^6
+
+julia> in1FInjectiveIdeal(g2,3)
+true
+
+julia> g3 = x^2*y^3*z^2*w^2*v*u^2*2 + 2x^12 + z^6*w^6 + w^4*v^4*z^4
+
+julia> in1FInjectiveIdeal(g3,3)
+false
+
+julia> g4 = x^2*y^3*z^2*w^2*v*u^2*3 + 2x^12 + z^6*w^6 + w^4*v^4*z^4
+
+julia> in1FInjectiveIdeal(g4,3)
+true
+```
+"""
+function in1FInjectiveIdeal(g,p)
+    # don't need this because exponent_vectors will have 
+    # no elements for the zero polynomial
+    g == zero(g) && return true
+
+#     p = characteristic(parent(g))
+
+    f = g#^(2p-2)
+
+    for i in 1:length(f)
+        ev = exponent_vector(f,i)
+        c = coeff(f,i)
+
+        ev_lt_p = ev .< p
+        # println(ev)
+        # println(c)
+        #println(all(ev .< 2p))
+        #println(count(==(false), ev_lt_p) == 1)
+        #println(c % p != 0)
+
+        if all(ev_lt_p) && (c % p^2 != 0)
+            # println("found type 1")
+          
+            # We not in the power of the maximal ideal, we don't have any
+            # powers that are big enough
+            return false
+        elseif all(ev .< 2p) && 
+               count(==(false), ev_lt_p) == 1 &&
+               c % p != 0
+            # println("found type 2")
+
+            return false
+        end
+    end
+
+    true
+end
+
+function is1FInjective(f,p)
+    g = f^(2p-2)
+    !in1FInjectiveIdeal(g,p)
+end
