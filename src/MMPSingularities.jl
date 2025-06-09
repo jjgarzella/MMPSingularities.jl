@@ -10,7 +10,7 @@ using CUDA
 using Primes
 import Adapt
 
-using DeRham
+using GradedRingUtilities
 using GPUPolynomials
 #include("../DeRham.jl/src/Utils.jl")
 
