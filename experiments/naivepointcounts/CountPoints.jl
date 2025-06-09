@@ -100,6 +100,45 @@ function pointcounts(points,coefs,exp_vecs,p)
     AcceleratedKernels.reduce(+,fq_points; init=zero(eltype(fq_points)),dims=1)
 end
 
+function test_buggy_example()
+
+    p = 19
+    exp_vec_ints = [0 0 0 0 0 0 1 1 1 1 1 2 2 2 2 3 3 3 4 4 5; 0 1 2 3 4 5 0 1 2 3 4 0 1 2 3 0 1 2 0 1 0; 5 4 3 2 1 0 4 3 2 1 0 3 2 1 0 2 1 0 1 0 0]
+    coefs = [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]
+ 
+    points_f19 = projective_space_points(19,1,2)
+    println("Number of points to check: $(length(points_f19))")
+    evs_f19 = convert.(Float32,exp_vec_ints)
+    coefs_f19 = convert.(Float32,coefs)
+
+    println("counting points over F_19...")
+    @time pc19 = pointcount(points_f19,coefs_f19,evs_f19,19)
+    println("$pc19 points over F_19")
+
+    points_f361 = projective_space_points(19,2,2)
+    println("Number of points to check: $(length(points_f361))")
+    F361 = eltype(points_f361)
+    evs_f361 = Int32.(exp_vec_ints)
+    coefs_f361 = F361.(coefs)
+
+    println("counting points over F_19^2...")
+    @time pc361 = pointcount(points_f361,coefs_f361,evs_f361)
+    println("$pc361 points over F_19^2")
+
+    println("enumerating points over F_19^3...")
+    @time points_f6859 = projective_space_points(19,3,2)
+    println("Number of points to check: $(length(points_f6859))")
+    F6859 = eltype(points_f6859)
+    evs_f6859 = Int32.(exp_vec_ints)
+    coefs_f6859 = F6859.(coefs)
+
+    println("counting points over F_19^2...")
+    @time pc6859 = pointcount(points_f6859,coefs_f6859,evs_f6859)
+    println("$pc6859 points over F_19^2")
+
+
+end
+
 function main_cpu(n)
     exp_vec_ints = [4 3 2 1 0 3 2 1 0 2 1 0 1 0 0 3 2 1 0 2 1 0 1 0 0 2 1 0 1 0 0 1 0 0 0; 0 1 2 3 4 0 1 2 3 0 1 2 0 1 0 0 1 2 3 0 1 2 0 1 0 0 1 2 0 1 0 0 1 0 0; 0 0 0 0 0 1 1 1 1 2 2 2 3 3 4 0 0 0 0 1 1 1 2 2 3 0 0 0 1 1 2 0 0 1 0; 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 3 3 3 4]
 
@@ -191,5 +230,5 @@ function main_cuda(n)
     @time pc = pointcount(points_f27,rand_k3_f27,exp_vecs_f27)
     println(pc)
 end
-p
+
 
