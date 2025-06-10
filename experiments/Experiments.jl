@@ -437,7 +437,24 @@ function generic_power_formula(pow,d,n)
   (R,avars,S,xvars,genericpoly^pow)
 end
 
+nverts(edgearray) = maximum(reduce(hcat,edgearray))
 
+function graph_data_from_string(s)
+    openreplaced = replace(s,"{" => "[") 
+    closereplaced = replace(openreplaced,"}" => "]")
+    edges = eval(Meta.parse(closereplaced))
+    (nverts(edges), edges)
+end
+
+"""
+creates the binomial edge ideal over F_p corresponding to the graph
+(v,e)
+
+p - prime power
+v - set of vertices
+e - set of edges, expected to be a collection of 2-element collections
+
+"""
 function binomial_edge_ideal(p,v,e)
     R, xs, ys = polynomial_ring(GF(p),:x => 1:length(v),:y => 1:length(v))
 
@@ -451,3 +468,16 @@ function binomial_edge_ideal(p,v,e)
 end
 
 
+# momts harvey trace formula
+
+function test_fedder()
+    R, (x,y,z,w) = polynomial_ring(GF(3),4)
+
+    for i = 1:50
+        h = MMPSingularities.random_homog_poly_mod(p,gens(R),4)
+        critical_term = MMPSingularities.diag_momts_naive_little(h,p)[1][15]
+        ordinary = MMPSingularities.isFSplit(p,h)
+        trace = sum(MMPSingularities.diag_momts_naive_little(h,p)[1])
+        println("Trace: $trace; Critical Term: $critical_term; Ordinary: $ordinary")
+    end
+end

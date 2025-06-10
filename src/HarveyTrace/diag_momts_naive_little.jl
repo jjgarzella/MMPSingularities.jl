@@ -1,5 +1,7 @@
 
 function diag_momts_naive_little(f,p)
+    n = length(gens(parent(f)))
+
     g = f^(p-1)
 
     d = total_degree(f)

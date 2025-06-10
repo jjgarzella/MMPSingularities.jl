@@ -13,7 +13,7 @@ function vector(f,d,order=:lex)
   F = coefficient_ring(R)
   f == zero(R) && return zeros(F,dim_of_homog_polys(n,d))
   @assert d == total_degree(f) "Expect d to be the degree of f"
-  DeRham.polynomial_to_vector(f, n, F, R,order)
+  polynomial_to_vector(f, n, order)
 end
 
 """
@@ -36,7 +36,7 @@ R is the base ring.
 function matrix_of_lin_op(L,d,R,order=:lex)
 
   n = length(gens(R))
-  monomials = DeRham.compute_monomials(n,d,R,order)
+  monomials = compute_monomials(n,d,R,order)
 
   m = length(monomials) # will be an mxm matrix
 

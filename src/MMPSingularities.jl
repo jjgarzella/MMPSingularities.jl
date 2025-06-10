@@ -26,12 +26,12 @@ include("FPureThresholds.jl")
 include("QFSCalabiYau.jl")
 include("QFSGeneralCase.jl")
 
-#include("RandomPolynomials.jl")
+include("RandomPolynomials.jl")
 #include("PolyData.jl")
 
 include("HarveyTrace/TraceFormula.jl")
 include("HarveyTrace/GenericMultiplyThenSplit.jl")
-include("HarveyTrace/diag_momts_naivce_little(f,p)")
+include("HarveyTrace/diag_momts_naive_little.jl")
 
 # exports here
 
