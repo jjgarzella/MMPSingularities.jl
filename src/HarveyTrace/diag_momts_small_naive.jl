@@ -1,6 +1,4 @@
 
-include("GenericMultiplyThenSplit.jl")
-
 function diag_momts_naive_little(f,p)
     g = f^(p-1)
 

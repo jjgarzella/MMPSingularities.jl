@@ -29,6 +29,10 @@ include("QFSGeneralCase.jl")
 #include("RandomPolynomials.jl")
 #include("PolyData.jl")
 
+include("HarveyTrace/TraceFormula.jl")
+include("HarveyTrace/GenericMultiplyThenSplit.jl")
+include("HarveyTrace/diag_momts_naivce_little(f,p)")
+
 # exports here
 
 end
