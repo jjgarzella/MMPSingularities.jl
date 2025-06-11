@@ -7,6 +7,7 @@ using StaticArrays
 using BitIntegers
 using InteractiveUtils
 using CUDA
+using AcceleratedKernels
 using Primes
 import Adapt
 
@@ -32,6 +33,9 @@ include("RandomPolynomials.jl")
 include("HarveyTrace/TraceFormula.jl")
 include("HarveyTrace/GenericMultiplyThenSplit.jl")
 include("HarveyTrace/diag_momts_naive_little.jl")
+
+include("naivepointcounts/ProjectiveSpace.jl")
+include("naivepointcounts/CountPoints.jl")
 
 # exports here
 

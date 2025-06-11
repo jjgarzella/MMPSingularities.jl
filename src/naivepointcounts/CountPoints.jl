@@ -23,7 +23,6 @@ function naive_eval(point,coefs,exp_vecs)
     res
 end
 
-using AcceleratedKernels
 
 """
 Here, coefs is a vector whose entries
@@ -98,6 +97,34 @@ function pointcounts(points,coefs,exp_vecs,p)
     end
 
     AcceleratedKernels.reduce(+,fq_points; init=zero(eltype(fq_points)),dims=1)
+end
+
+function naive_pointcount(f,p,r)
+    n = length(gens(parent(f)))
+    lift_to_Int = x -> Int(lift(ZZ,x))
+    coefs = lift_to_Int.(polynomial_to_vector(f,n))
+    evs = gen_exp_vec(n,total_degree(f))
+    exp_vec_ints = reduce(hcat,evs)
+
+    points_Fpr = projective_space_points(p,r,n-1)
+
+    if r == 1
+        evs_Fp = convert.(Float32,exp_vec_ints)
+        coefs_Fp = convert.(Float32,coefs)
+
+        println("counting points over F_$p...")
+        @time pc = pointcount(points_Fpr,coefs_Fp,evs_Fp,p)
+        pc
+    else
+        Fpr = eltype(points_Fpr)
+
+        evs_Fpr = Int32.(exp_vec_ints)
+        coefs_Fpr = Fpr.(coefs)
+        println("counting points over F_$p^$r...")
+        println("Number of points to check: $(length(points_Fpr))")
+        @time pc = pointcount(points_Fpr,coefs_Fpr,evs_Fpr)
+        pc
+    end
 end
 
 function test_buggy_example()
@@ -184,7 +211,7 @@ function main_cpu(n)
     println(pc)
 end
 
-using CUDA
+#using CUDA
 
 function main_cuda(n)
     exp_vec_ints = [4 3 2 1 0 3 2 1 0 2 1 0 1 0 0 3 2 1 0 2 1 0 1 0 0 2 1 0 1 0 0 1 0 0 0; 0 1 2 3 4 0 1 2 3 0 1 2 0 1 0 0 1 2 3 0 1 2 0 1 0 0 1 2 0 1 0 0 1 0 0; 0 0 0 0 0 1 1 1 1 2 2 2 3 3 4 0 0 0 0 1 1 1 2 2 3 0 0 0 1 1 2 0 0 1 0; 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 3 3 3 4]

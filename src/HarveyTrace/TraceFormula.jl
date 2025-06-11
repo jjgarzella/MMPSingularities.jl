@@ -464,14 +464,24 @@ function ψ(p,f)
     polynomial_frobenius_splitting(p,f,zeros(Int,n))
 end
 
-function A(p,f)
+function AF(p,f)
     g -> ψ(p,g * f^(p-1))
+end
+
+function AFs(p,f,s)
+    g -> ψ(p,g * f^(s*(p-1)))
 end
 
 function matrix_A(p,f)
     R = parent(f)
     d = total_degree(f)
-    matrix_of_lin_op(A(p,f),d,R)
+    matrix_of_lin_op(AF(p,f),d,R)
+end
+
+function matrix_AFs(p,f,s)
+    R = parent(f)
+    d = total_degree(f)*s
+    matrix_of_lin_op(AFs(p,f,s),d,R)
 end
 
 my_trace(A) = sum(A[i,i] for i in 1:size(A,1))
@@ -490,6 +500,43 @@ function αₛ(λ,s,τ)
     result
 end
 
+"""
+If X = Z(f), then this returns
+|#X(F_p^r)| \\mod p^λ
+
+Assumes a = 1, i.e. q = p
+"""
+function harvey_pointcount_approx(f,p,r,λ)
+
+    n = length(gens(parent(f))) - 1 # Z(f) is in T^n
+
+    result = 0
+
+    τ = ceil(Int,λ / ( (p-1)*r ))
+
+    for s = 0:λ
+        term = αₛ(λ,s,τ)
+        AFs = matrix_AFs(p,f,s)
+        AFsr = AFs^r
+        term *= trace(AFsr) #my_trace(AFsr)
+        result += term
+    end
+
+    result *= (p^r - 1)^n
+
+    result
+end
+
+function harvey_count_points_mod(f,p,D,λ)
+    pcs = zeros(Int,D)
+
+    for r in 1:D
+
+        pcs = harvey_pointcount_approx(f,p,r,λ)
+    end
+
+    pcs
+end
 
 #TODO:
 #

@@ -130,21 +130,21 @@
 #    res
 #end
 
-function vector(f,d,order=:lex)
-    R = parent(f)
-    n = length(gens(R))
+# function vector(f,d,order=:lex)
+#     R = parent(f)
+#     n = length(gens(R))
   
-    F = coefficient_ring(R)
-    f == zero(R) && return zeros(F,dim_of_homog_polys(n,d))
-    @assert d == total_degree(f) "Expect d to be the degree of f"
-    polynomial_to_vector(f, n, F, R,order)
-end
+#     F = coefficient_ring(R)
+#     f == zero(R) && return zeros(F,dim_of_homog_polys(n,d))
+#     @assert d == total_degree(f) "Expect d to be the degree of f"
+#     polynomial_to_vector(f, n, F, R,order)
+# end
 
-function allmonomialcombos(vars,deg)
-    repeated_vars = repeat(vars,deg)
-    multiset_combinations(repeated_vars,deg)
+# function allmonomialcombos(vars,deg)
+#     repeated_vars = repeat(vars,deg)
+#     multiset_combinations(repeated_vars,deg)
   
-end#function
+# end#function
 
 function generic_homog_poly(R)
     nVars = length(gens(R))
@@ -191,83 +191,83 @@ end
 #     return Δ
 # end#function
 
-function encode_degs(degs, bits)
-    result = zeros(UInt64, size(degs, 2))
-    for i in eachindex(result)
-        result[i] = base2kron(view(degs, :, i), bits)
-    end
+# function encode_degs(degs, bits)
+#     result = zeros(UInt64, size(degs, 2))
+#     for i in eachindex(result)
+#         result[i] = base2kron(view(degs, :, i), bits)
+#     end
 
-    return result
-end
+#     return result
+# end
 
-function base2kron(vec, bits)
-    result = zero(UInt64)
-    for i in eachindex(vec)
-        result += vec[i] << (bits * (length(vec) - i))
-    end
-    return result
-end
+# function base2kron(vec, bits)
+#     result = zero(UInt64)
+#     for i in eachindex(vec)
+#         result += vec[i] << (bits * (length(vec) - i))
+#     end
+#     return result
+# end
 
-function base2divkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
-    result = zero(T)
-    mask = (one(T) << bits) - one(T)
-    for i in 0:(numVars - 1)
-        element = (num >> (bits * i)) & mask
-        divided = element ÷ m
-        result += divided << (bits * i)
-    end
-    return result
-end
+# function base2divkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
+#     result = zero(T)
+#     mask = (one(T) << bits) - one(T)
+#     for i in 0:(numVars - 1)
+#         element = (num >> (bits * i)) & mask
+#         divided = element ÷ m
+#         result += divided << (bits * i)
+#     end
+#     return result
+# end
 
-function base2modkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
-    result = zero(T)
-    mask = (one(T) << bits) - one(T)
-    for i in 0:(numVars - 1)
-        element = (num >> (bits * i)) & mask
-        modded = element % m
-        result += modded << (bits * i)
-    end
-    return result
-end
+# function base2modkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
+#     result = zero(T)
+#     mask = (one(T) << bits) - one(T)
+#     for i in 0:(numVars - 1)
+#         element = (num >> (bits * i)) & mask
+#         modded = element % m
+#         result += modded << (bits * i)
+#     end
+#     return result
+# end
 
-function find_next_pminus1(num::T, nvars::Int, bits::Int, p::T) where T<:Number
-    result = zero(T)
-    mask = (one(T) << bits) - one(T)
-    total = zero(T)
-    added = zero(T)
-    for i in 0:(nvars - 1)
-        element = (num >> (bits * i)) & mask
-        adjust = p - one(T) - (element % p)
-        total += adjust
-        added += adjust << (bits * i)
-        result += (element + adjust) << (bits * i)
-    end
-    return result, added, total
-end
+# function find_next_pminus1(num::T, nvars::Int, bits::Int, p::T) where T<:Number
+#     result = zero(T)
+#     mask = (one(T) << bits) - one(T)
+#     total = zero(T)
+#     added = zero(T)
+#     for i in 0:(nvars - 1)
+#         element = (num >> (bits * i)) & mask
+#         adjust = p - one(T) - (element % p)
+#         total += adjust
+#         added += adjust << (bits * i)
+#         result += (element + adjust) << (bits * i)
+#     end
+#     return result, added, total
+# end
 
-function wics(n, k)
-    x = fill(0, k)
-    x[1] = n
-    result = zeros(Int, k, binomial(n + k - 1, k - 1))
-    idx = 1
-    while true
-        view(result, :, idx) .= x
-        idx += 1
-        v = x[end]
-        if n == v
-            break
-        end
-        x[end] = 0
-        j = k - 1
-        while x[j] == 0
-            j -= 1
-        end
-        x[j] -= 1
-        x[j + 1] = 1 + v
-    end
+# function wics(n, k)
+#     x = fill(0, k)
+#     x[1] = n
+#     result = zeros(Int, k, binomial(n + k - 1, k - 1))
+#     idx = 1
+#     while true
+#         view(result, :, idx) .= x
+#         idx += 1
+#         v = x[end]
+#         if n == v
+#             break
+#         end
+#         x[end] = 0
+#         j = k - 1
+#         while x[j] == 0
+#             j -= 1
+#         end
+#         x[j] -= 1
+#         x[j + 1] = 1 + v
+#     end
 
-    return result
-end
+#     return result
+# end
 
 function generic_matrix_of_multiply_then_split(f,p)
     #p = f.parent.base_ring.data.n
@@ -317,14 +317,14 @@ function generic_matrix_of_multiply_then_split(f,p)
     return result
 end
 
-function index_of_term_not_in_frobenius_power_CY(p,n,order=:lex)
-    R, vars = polynomial_ring(GF(p),n)
+# function index_of_term_not_in_frobenius_power_CY(p,n,order=:lex)
+#     R, vars = polynomial_ring(GF(p),n)
     
-    crit_term = prod(vars .^ (p-1))
+#     crit_term = prod(vars .^ (p-1))
   
-    # perhaps assert this has only one element?
-    findfirst(vector(crit_term,total_degree(crit_term)) .!= 0)
-end
+#     # perhaps assert this has only one element?
+#     findfirst(vector(crit_term,total_degree(crit_term)) .!= 0)
+# end
 
 function run()
     n = 4
