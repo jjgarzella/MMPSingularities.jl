@@ -1,5 +1,13 @@
 
 
+function nverts(edgearray)
+    if !(eltype(edgearray) <: Array)
+        edgearray = collect.(edgearray)
+    end
+
+    maximum(reduce(hcat,edgearray))
+end
+
 """
 creates the binomial edge ideal over F_p corresponding to the graph
 (v,e)
