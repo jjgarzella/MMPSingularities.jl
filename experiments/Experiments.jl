@@ -481,3 +481,110 @@ function test_fedder()
         println("Trace: $trace; Critical Term: $critical_term; Ordinary: $ordinary")
     end
 end
+
+function lots_of_fedder(p,N,ticker=100)
+
+    exams = []
+    Threads.@threads for i in 1:N
+        f = DeRham.random_hypersurface(5,4,p)
+
+        test = MMPSingularities.isFSplit(p,f)
+
+        if !test
+            #println("Found a non-F-split example!")
+            push!(exams,f)
+        end
+
+        if i % ticker == 0
+            #println("Completed $ticker examples")
+        end
+    end
+
+    println("Found $(length(exams)) non-F-split examples.")
+    println("Ratio: $(length(exams) / N)")
+
+    exams
+end
+
+function non_F_split_ratio(p,N,ticker=100)
+
+    exams = []
+    i = 1
+    while i ≤ N
+        f = DeRham.random_hypersurface(5,4,p)
+
+        smooth = DeRham.check_smoothness(f)
+        if !smooth
+            continue
+        end
+
+        test = MMPSingularities.isFSplit(p,f)
+
+        if !test
+            println("Found a non-F-split example!")
+            push!(exams,f)
+        end
+
+        if i % ticker == 0
+            println("Completed $ticker examples")
+        end
+
+        i = i + 1
+    end
+
+    println("Found $(length(exams)) non-F-split examples.")
+    println("Ratio: $(length(exams) / N)")
+
+    exams
+end
+
+function generic_f_split(p)
+
+    A, Avars = polynomial_ring(GF(p),:a => 1:70)
+    R, vars = polynomial_ring(A,5)
+
+    exps = DeRham.gen_exp_vec(5,4)
+    generic_poly = sum(Avars .* (prod.(map(e -> vars .^ e, exps))))
+
+    squared = generic_poly^(p-1)
+
+    ts = []
+    for t in terms(squared)
+        if !MMPSingularities.inPowerOfVariableIdeal(p,p,t)
+            push!(ts,t)
+        end
+    end
+    
+    ts
+end
+
+function dwork_pencil_clone(p,λ)
+    g = DeRham.fermat_hypersurface(5,4,5)
+    R = parent(g)
+
+    dwork_term = sum(prod.(Combinatorics.combinations(gens(R),4)))
+
+    g + λ*dwork_term
+end
+
+function dwork_clone_Fsplitness(p)
+    fsplits = []
+    for i in 0:p-1
+        f = dwork_pencil_clone(p,i)
+
+        test = MMPSingularities.isFSplit(p,f)
+        push!(fsplits,test)
+    end
+    
+    fsplits
+end
+
+function non_f_split_num_equations(n,d,p)
+    exps = DeRham.gen_exp_vec(n,d*(p-1))
+
+    isFsplitterm(tup) = !any(p .≤ tup)
+
+    interesting = filter(isFsplitterm,exps)
+
+    (interesting,length(interesting))
+end
