@@ -36,43 +36,43 @@ function test_heights_k3surf(p,qfs_fn)
   evaluate_test_set(qfs_fn,ps,cases,cutoffs,heights)
 end
 
-"""
-Note: calling this method is expensive
-on the first call, as it will cause Julia
-to compile all of the methods which get returned
-in the array.
-"""
-function algorithms_k3surf(p)
+# """
+# Note: calling this method is expensive
+# on the first call, as it will cause Julia
+# to compile all of the methods which get returned
+# in the array.
+# """
+# function algorithms_k3surf(p)
   
-  # create pregen manually, this will speed things up a lot
-  pregen_k3 = MMPSingularities.pregen_qfsheight(4,p)
+#   # create pregen manually, this will speed things up a lot
+#   pregen_k3 = MMPSingularities.pregen_qfsheight(4,p)
 
-  stateoftheart = [(p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_lift_wics_gpu(p,f,cutoff,pregen_k3)]
+#   stateoftheart = [(p,f,cutoff) -> MMPSingularities.quasiFSplitHeight_CY_lift_wics_gpu(p,f,cutoff,pregen_k3)]
 
-  others = [MMPSingularities.quasiFSplitHeight_CY_naive_expansion,
-            MMPSingularities.quasiFSplitHeight_CY_lift_lazy,
-            MMPSingularities.quasiFSplitHeight_CY_lift_matrix,
-            MMPSingularities.quasiFSplitHeight_CY_lift_matrix_combined,
-            MMPSingularities.quasiFSplitHeight_CY_formula]
+#   others = [MMPSingularities.quasiFSplitHeight_CY_naive_expansion,
+#             MMPSingularities.quasiFSplitHeight_CY_lift_lazy,
+#             MMPSingularities.quasiFSplitHeight_CY_lift_matrix,
+#             MMPSingularities.quasiFSplitHeight_CY_lift_matrix_combined,
+#             MMPSingularities.quasiFSplitHeight_CY_formula]
 
-  algs = [stateoftheart; others]
+#   algs = [stateoftheart; others]
 
-  if p == 2
-    algs
-  elseif p == 3
-    algs
-  elseif p == 5
-    [algs[1]]
-  elseif p == 7
-    [algs[1]]
-  elseif p == 11
-    [algs[1]]
-  elseif p == 13
-    [algs[1]]
-  else
-    []
-  end
-end
+#   if p == 2
+#     algs
+#   elseif p == 3
+#     algs
+#   elseif p == 5
+#     [algs[1]]
+#   elseif p == 7
+#     [algs[1]]
+#   elseif p == 11
+#     [algs[1]]
+#   elseif p == 13
+#     [algs[1]]
+#   else
+#     []
+#   end
+# end
 
 # function algorithms_cy3(p)
 #   # create pregen manually, this will speed things up a lot
@@ -91,30 +91,30 @@ end
 # end
 
 
-"""
-Manually select the algorithms that make sense to test for various p so that
-the tests take a reasonable amount of time.
-"""
-function test_heights_all_performant()
+# """
+# Manually select the algorithms that make sense to test for various p so that
+# the tests take a reasonable amount of time.
+# """
+# function test_heights_all_performant()
 
 
-  ps_k3 = [2,3,5,7,11,13]
-  ps_cy3 = 2
+#   ps_k3 = [2,3,5,7,11,13]
+#   ps_cy3 = 2
 
-  # K3 surfaces
-  for p in ps_k3
-    for alg in algorithms_k3(p)
-      test_heights_k3surf(p,alg)
-    end
-  end
+#   # K3 surfaces
+#   for p in ps_k3
+#     for alg in algorithms_k3(p)
+#       test_heights_k3surf(p,alg)
+#     end
+#   end
 
-  # CY threefolds
-  for p in ps_cy3
-    for alg in algorithms_cy3(p)
-      test_heights_cy3(p,alg)
-    end
-  end
-end
+#   # CY threefolds
+#   for p in ps_cy3
+#     for alg in algorithms_cy3(p)
+#       test_heights_cy3(p,alg)
+#     end
+#   end
+# end
 
 """
 Runs the test case `case` and times it.

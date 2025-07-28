@@ -6,12 +6,12 @@
 #using Oscar
 
 function height_run_tests()
-    height_test_K3_3() # Have not tested any of these heights with the
-    height_test_K3_5() # guaranteed working methods, we honestly have a 
-    height_test_K3_7() # pretty big problem if they aren't right
+    # height_test_K3_3() # Have not tested any of these heights with the
+    # height_test_K3_5() # guaranteed working methods, we honestly have a 
+    # height_test_K3_7() # pretty big problem if they aren't right
     # height_test_K3_11()
-    # height_test_K3_13()
-    test_matrix()
+    height_test_K3_13()
+    # test_matrix()
 end
 
 function height_test_K3_3()
@@ -196,6 +196,9 @@ function height_test_K3_11()
 
     ftwo1 = 4*x1^4 + 5*x1^3*x2 + 9*x1^3*x3 + 2*x1^3*x4 + 8*x1^2*x2^2 + x1^2*x2*x3 + 9*x1^2*x2*x4 + x1^2*x3^2 + 8*x1^2*x3*x4 + 6*x1*x2^3 + 10*x1*x2^2*x3 + 2*x1*x2^2*x4 + 10*x1*x2*x3^2 + 9*x1*x2*x3*x4 + 6*x1*x2*x4^2 + 8*x1*x3^3 + 4*x1*x3^2*x4 + 7*x1*x3*x4^2 + 9*x1*x4^3 + 3*x2^4 + 7*x2^3*x3 + 6*x2^3*x4 + 10*x2^2*x3^2 + 8*x2^2*x3*x4 + x2^2*x4^2 + 9*x2*x3^3 + 6*x2*x3^2*x4 + x2*x3*x4^2 + 9*x3^4 + 10*x3^3*x4 + x3^2*x4^2 + x3*x4^3 + 4*x4^4
 
+    # This example is nondegenerate in the sense of Costa, Harvey, and Kedlaya
+    ftwo2 = 2*x1^4 + x1^3*x2 + x1^3*x3 + 7*x1^3*x4 + 10*x1^2*x2^2 + 7*x1^2*x2*x3 + 6*x1^2*x2*x4 + 5*x1^2*x3^2 + 9*x1^2*x3*x4 + 9*x1*x2^3 + 3*x1*x2^2*x3 + 3*x1*x2^2*x4 + 6*x1*x2*x3^2 + 5*x1*x2*x3*x4 + 7*x1*x2*x4^2 + 3*x1*x3^3 + x1*x3^2*x4 + 7*x1*x3*x4^2 + 6*x1*x4^3 + 7*x2^4 + 2*x2^3*x4 + 3*x2^2*x3^2 + 10*x2^2*x3*x4 + x2^2*x4^2 + 4*x2*x3^3 + 3*x2*x3^2*x4 + 10*x2*x3*x4^2 + 2*x2*x4^3 + 4*x3^4 + 8*x3^3*x4 + 9*x3*x4^3 + 8*x4^4
+
     fthree1 = 10*x1^4 + 9*x1^3*x2 + 5*x1^3*x3 + 4*x1^3*x4 + 3*x1^2*x2^2 + 9*x1^2*x2*x3 + 4*x1^2*x2*x4 + 10*x1^2*x3^2 + 4*x1^2*x3*x4 + 8*x1^2*x4^2 + 8*x1*x2^3 + 9*x1*x2^2*x3 + 3*x1*x2^2*x4 + 7*x1*x2*x3^2 + 3*x1*x2*x4^2 + 8*x1*x3^3 + 2*x1*x3^2*x4 + x1*x3*x4^2 + 7*x1*x4^3 + 2*x2^4 + 3*x2^3*x4 + x2^2*x3^2 + x2^2*x3*x4 + x2^2*x4^2 + 5*x2*x3^3 + 9*x2*x3^2*x4 + 9*x2*x3*x4^2 + 4*x2*x4^3 + 5*x3^4 + 10*x3^3*x4 + 10*x3*x4^3 + 10*x4^4
 
     ffour1 = 2*x1^4 + 4*x1^3*x2 + 9*x1^3*x3 + 10*x1^3*x4 + 2*x1^2*x2^2 + 4*x1^2*x2*x3 + 4*x1^2*x2*x4 + 4*x1^2*x3^2 + 10*x1^2*x3*x4 + 9*x1^2*x4^2 + 5*x1*x2^3 + 5*x1*x2^2*x3 + x1*x2^2*x4 + 8*x1*x2*x3^2 + 2*x1*x2*x3*x4 + 10*x1*x2*x4^2 + 8*x1*x3^3 + 7*x1*x3^2*x4 + 5*x1*x3*x4^2 + 4*x1*x4^3 + 3*x2^4 + 6*x2^3*x3 + 4*x2^3*x4 + 10*x2^2*x3^2 + 5*x2^2*x3*x4 + 5*x2^2*x4^2 + x2*x3^3 + 5*x2*x4^3 + 5*x3^4 + 7*x3^2*x4^2 + 5*x3*x4^3 + 9*x4^4
@@ -209,12 +212,13 @@ function height_test_K3_11()
     println("Running K3_11 tests...")
     @test qfs_height_fn(fone1) == 1
     @test qfs_height_fn(ftwo1) == 2
+    @test qfs_height_fn(ftwo2) == 2
     @test qfs_height_fn(fthree1) == 3
     @test qfs_height_fn(ffour1) == 4
     @test qfs_height_fn(ffive1) == 5
 end
 
-function height_test_K3_13()
+fthree1 = 8*x1^4 + 2*x1^3*x2 + 3*x1^3*x3 + x1^3*x4 + 6*x1^2*x2^2 + 7*x1^2*x2*x3 + 5*x1^2*x2*x4 + 2*x1^2*x3^2 + x1^2*x4^2 + 11*x1*x2^3 + 10*x1*x2^2*x3 + 3*x1*x2^2*x4 + 5*x1*x2*x3^2 + 10*x1*x2*x3*x4 + 7*x1*x2*x4^2 + 12*x1*x3^3 + 12*x1*x3^2*x4 + 5*x1*x3*x4^2 + 7*x1*x4^3 + 7*x2^4 + 6*x2^3*x3 + 3*x2^3*x4 + 10*x2^2*x3^2 + 5*x2^2*x3*x4 + 12*x2^2*x4^2 + x2*x3^3 + 3*x2*x3^2*x4 + 12*x2*x3*x4^2 + 8*x2*x4^3 + 10*x3^4 + 7*x3^3*x4 + 4*x3^2*x4^2 + 8*x3*x4^3 + 2*x4^4function height_test_K3_13()
     n = 4
     p = 13
 
