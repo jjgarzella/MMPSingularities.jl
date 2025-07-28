@@ -1,3 +1,30 @@
+
+"""
+In the case that f is Calabi-Yau
+(degree = number of variables)
+Calculates the quasi-F-split height
+ht(f) of
+f if ht(f) ≤ cutoff. 
+Otherwise, 
+return a value that is bigger than b.
+
+"""
+function quasiFSplitHeight_CY(p,poly,cutoff,pregen=nothing)
+    if p ≤ 3
+        quasiFSplitHeight_CY_lift(p,poly,cutoff)
+    else
+        if pregen == nothing
+            n = length(gens(parent(poly)))
+            
+            println("No pregen found. Creating one...")
+            @time pregen = pregen_qfsheight(n, p)
+        end
+        h = quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen) 
+        h
+    end
+end
+
+
 """
 Calculates the quasi-F-split height
 in the case that deg(poly) = nvars(parent(poly))
@@ -226,56 +253,56 @@ function quasiFSplitHeight_CY_naive_expansion(p,poly,cutoff)
   return cutoff + 1
 end#function
 
-"""
-Calculates the quasi-F-split height
-in the case that deg(poly) = nvars(parent(poly))
+#"""
+#Calculates the quasi-F-split height
+#in the case that deg(poly) = nvars(parent(poly))
 
-cutoff is inclusive, so it should be the highest possible height
+#cutoff is inclusive, so it should be the highest possible height
 
-Uses the lift-based algorithm to calculate Δ₁
+#Uses the lift-based algorithm to calculate Δ₁
 
-This one uses multiply_then_split to only keep track of terms
-that it needs.
+#This one uses multiply_then_split to only keep track of terms
+#that it needs.
 
-"""
-function quasiFSplitHeight_CY_lift_lazy(p,poly,cutoff)
-  N = length(gens(parent(poly)))
+#"""
+#function quasiFSplitHeight_CY_lift_lazy(p,poly,cutoff)
+#  N = length(gens(parent(poly)))
 
-  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+#  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
 
-  isFSplit(p,poly) && return 1
+#  isFSplit(p,poly) && return 1
 
-  f = poly
+#  f = poly
 
-  Δ₁fpminus1 = Δ₁l(p,f^(p-1))
-  θFstar(a) = multiply_then_split(p,Δ₁fpminus1,a)
+#  Δ₁fpminus1 = Δ₁l(p,f^(p-1))
+#  θFstar(a) = multiply_then_split(p,Δ₁fpminus1,a)
 
-  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
-  # Honestly, just calling the ideals I_n could get confusing IMO
+#  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+#  # Honestly, just calling the ideals I_n could get confusing IMO
 
-  n = 2
-  # The newest generator in the KTY ideal I_2.
-  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
-  # be concatenating on new generator at each step until the chain terminates.
-  # See Theorem 5.8 in 2204.10076
-  KTYideal_n_new_gen = θFstar(f^(p-1))
+#  n = 2
+#  # The newest generator in the KTY ideal I_2.
+#  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+#  # be concatenating on new generator at each step until the chain terminates.
+#  # See Theorem 5.8 in 2204.10076
+#  KTYideal_n_new_gen = θFstar(f^(p-1))
 
-  while n ≤ cutoff
-    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
-    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+#  while n ≤ cutoff
+#    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+#    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
 
-    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
-      # We are quasi-F split of height n! Yay!!
-      return n
-    end
+#    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+#      # We are quasi-F split of height n! Yay!!
+#      return n
+#    end
 
-    n = n + 1
-    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
-  end
+#    n = n + 1
+#    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+#    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+#  end
 
-  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
-end#function
+#  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+#end#function
 
 # """
 # Calculates the quasi-F-split height
@@ -356,117 +383,117 @@ end#function
 # end#function
 
 
-"""
-Calculates the quasi-F-split height
-in the case that deg(poly) = nvars(parent(poly))
+#"""
+#Calculates the quasi-F-split height
+#in the case that deg(poly) = nvars(parent(poly))
 
-cutoff is inclusive, so it should be the highest possible height
+#cutoff is inclusive, so it should be the highest possible height
 
-Uses the lift-based algorithm to calculate Δ₁
+#Uses the lift-based algorithm to calculate Δ₁
 
-Uses the matrix representaion of θFstar to compute the height.
+#Uses the matrix representaion of θFstar to compute the height.
 
-this uses the method `matrix_of_lin_op` to calculate
-the matrix of first multiplying and then applying the splitting.
-"""
-function quasiFSplitHeight_CY_lift_matrix(p,poly,cutoff)
-  N = length(gens(parent(poly)))
+#this uses the method `matrix_of_lin_op` to calculate
+#the matrix of first multiplying and then applying the splitting.
+#"""
+#function quasiFSplitHeight_CY_lift_matrix(p,poly,cutoff)
+#  N = length(gens(parent(poly)))
 
-  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+#  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
 
-  isFSplit(p,poly) && return 1
+#  isFSplit(p,poly) && return 1
 
-  f = poly
+#  f = poly
 
-  fpminus1 = f^(p-1)
+#  fpminus1 = f^(p-1)
 
-  Δ₁fpminus1 = Δ₁l(p,fpminus1)
-  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+#  Δ₁fpminus1 = Δ₁l(p,fpminus1)
+#  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
-  m = N*(p-1)
-  critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
-  start_vector = vector(fpminus1,m)
-  println("creating matrix...")
-  @time M = matrix_of_lin_op(θFstar,m,parent(f))
-  println("matrix finished:")
-  display(M)
+#  m = N*(p-1)
+#  critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
+#  start_vector = vector(fpminus1,m)
+#  println("creating matrix...")
+#  @time M = matrix_of_lin_op(θFstar,m,parent(f))
+#  println("matrix finished:")
+#  display(M)
 
-  zzs = zeros(parent(start_vector[1]),m)
+#  zzs = zeros(parent(start_vector[1]),m)
 
-  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
-  # Honestly, just calling the ideals I_n could get confusing IMO
+#  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+#  # Honestly, just calling the ideals I_n could get confusing IMO
 
-  n = 2
-  # The newest generator in the KTY ideal I_2.
-  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
-  # be concatenating on new generator at each step until the chain terminates.
-  # See Theorem 5.8 in 2204.10076
+#  n = 2
+#  # The newest generator in the KTY ideal I_2.
+#  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+#  # be concatenating on new generator at each step until the chain terminates.
+#  # See Theorem 5.8 in 2204.10076
 
-  println("trying height $n")
-  @time KTYideal_n_new_gen = M * start_vector
+#  println("trying height $n")
+#  @time KTYideal_n_new_gen = M * start_vector
 
-  while n ≤ cutoff
-    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
-    KTYideal_n_new_gen == zzs && return cutoff + 2 # the chain terminated early, provable infinity
+#  while n ≤ cutoff
+#    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+#    KTYideal_n_new_gen == zzs && return cutoff + 2 # the chain terminated early, provable infinity
 
-    if KTYideal_n_new_gen[critical_ind] != 0
-      # We are quasi-F split of height n! Yay!!
-      return n
-    end
+#    if KTYideal_n_new_gen[critical_ind] != 0
+#      # We are quasi-F split of height n! Yay!!
+#      return n
+#    end
 
-    n = n + 1
-    println("trying height $n")
-    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-    @time KTYideal_n_new_gen = M * KTYideal_n_new_gen
-  end
+#    n = n + 1
+#    println("trying height $n")
+#    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+#    @time KTYideal_n_new_gen = M * KTYideal_n_new_gen
+#  end
 
-  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
-end#function
+#  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+#end#function
 
-"""
-Calculates the quasi-F-split height
-in the case that deg(poly) = nvars(parent(poly))
+#"""
+#Calculates the quasi-F-split height
+#in the case that deg(poly) = nvars(parent(poly))
 
-cutoff is inclusive, so it should be the highest possible height
+#cutoff is inclusive, so it should be the highest possible height
 
-This uses calculates Δ_1 by using a formula for the coefficients,
-i.e. by using multinomial coefficients.
-"""
-function quasiFSplitHeight_CY_formula(p,poly,cutoff)
-  N = length(gens(parent(poly)))
+#This uses calculates Δ_1 by using a formula for the coefficients,
+#i.e. by using multinomial coefficients.
+#"""
+#function quasiFSplitHeight_CY_formula(p,poly,cutoff)
+#  N = length(gens(parent(poly)))
 
-  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
+#  !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
 
-  isFSplit(p,poly) && return 1
+#  isFSplit(p,poly) && return 1
 
-  f = poly
+#  f = poly
 
-  Δ₁fpminus1 = Δ₁(p,f^(p-1))
-  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
+#  Δ₁fpminus1 = Δ₁(p,f^(p-1))
+#  θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
-  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
-  # Honestly, just calling the ideals I_n could get confusing IMO
+#  # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
+#  # Honestly, just calling the ideals I_n could get confusing IMO
 
-  n = 2
-  # The newest generator in the KTY ideal I_2.
-  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
-  # be concatenating on new generator at each step until the chain terminates.
-  # See Theorem 5.8 in 2204.10076
-  KTYideal_n_new_gen = θFstar(f^(p-1))
+#  n = 2
+#  # The newest generator in the KTY ideal I_2.
+#  # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
+#  # be concatenating on new generator at each step until the chain terminates.
+#  # See Theorem 5.8 in 2204.10076
+#  KTYideal_n_new_gen = θFstar(f^(p-1))
 
-  while n ≤ cutoff
-    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
-    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
+#  while n ≤ cutoff
+#    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+#    KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
 
-    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
-      # We are quasi-F split of height n! Yay!!
-      return n
-    end
+#    if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
+#      # We are quasi-F split of height n! Yay!!
+#      return n
+#    end
 
-    n = n + 1
-    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
-  end
+#    n = n + 1
+#    #println("next one should be: ", θFstar(KTYideal_n_new_gen))
+#    KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+#  end
 
-  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
-end#function
+#  return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+#end#function
