@@ -136,6 +136,22 @@ function in_kernel_poly_frob_generator(p,poly)
   return true
 end#function
 
+function get_common_variable_factors(f)
+    facts = collect(Oscar.factor(f))
+
+    res_term = one(parent(f))
+    for b in facts
+        t = b[1]
+        if length(terms(t)) == 1
+            res_term *= t^b[2]
+        end
+    end
+
+    exponent_vector(res_term,1) 
+end
+
+
+
 # MARK - computing Δ_1
 
 """
@@ -543,7 +559,7 @@ function Fstar_basis(p,poly)
 
   numgens = p^n - 1
 
-  generators = zeros(parent(poly),fill(p,n)...)
+  generators = zeros(parent(poly),fill(Int(p),n)...)
   for i in CartesianIndices(generators)
     exps = Tuple(i) .- 1
     generators[i] = prod(vars .^ exps)
