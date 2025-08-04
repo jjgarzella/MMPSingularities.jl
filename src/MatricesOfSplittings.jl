@@ -134,7 +134,7 @@ function pregen_MOMTS(n, p)
     n = Int(n)
     p = Int(p)
     d = n * (p - 1)
-    mons = DeRham.DeRham.gen_exp_vec(n, d)
+    mons = gen_exp_vec(n, d)
     mons = reduce(hcat, mons)
 
     if n == 4
@@ -219,7 +219,7 @@ function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}; plan = nothin
 end
 
 function matrix_of_multiply_then_split_triv(p,coeffs,degs,d,numVars,bits)
-    mons = DeRham.gen_exp_vec(numVars,d)
+    mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
     nMons = size(mons,2)
@@ -257,7 +257,7 @@ function matrix_of_multiply_then_split_triv_gpu(p,coeffs,degs,d,numVars,bits,pre
         pregen = pregen_MOMTS(n, p)
     end
 
-    mons = DeRham.gen_exp_vec(numVars,d)
+    mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
     nMons = size(mons,2)
@@ -284,7 +284,7 @@ function matrix_of_multiply_then_split_triv_gpu(p,coeffs,degs,d,numVars,bits,pre
 end
 
 function matrix_of_multiply_then_split_merge(p::UInt, coefs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
-    mons = DeRham.gen_exp_vec(numVars,d)
+    mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
     nMons = size(mons,2)
@@ -379,7 +379,7 @@ function matrix_of_multiply_then_split_merge(p::UInt, coefs::Vector{<:Unsigned},
 end
 
 function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
-    mons = DeRham.gen_exp_vec(numVars,d)
+    mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
     nMons = size(mons,2)
