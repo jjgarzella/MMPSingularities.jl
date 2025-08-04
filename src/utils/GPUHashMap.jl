@@ -1,4 +1,4 @@
-struct MyMap{A, B}
+struct GPUHashMap{A, B}
     buckets::B
     keys::A
     values::B
@@ -19,7 +19,7 @@ function find_biggest_prime_lt(num)
     end
 end
 
-function Base.getindex(mymap::MyMap, key)
+function Base.getindex(mymap::GPUHashMap, key)
     bucket = (key % length(mymap.buckets)) + 1
     startidx = mymap.buckets[bucket]
 
@@ -30,7 +30,7 @@ function Base.getindex(mymap::MyMap, key)
     return mymap.values[startidx]
 end
 
-Adapt.@adapt_structure MyMap
+Adapt.@adapt_structure GPUHashMap
 
 function make_dict(encodedMons)
     num = find_biggest_prime_lt(length(encodedMons) >> 1)
@@ -57,7 +57,7 @@ function make_dict(encodedMons)
         end
     end
 
-    reverseDict = MyMap(CuArray(startindices), CuArray(hashedMons), CuArray(originalIndices))
+    reverseDict = GPUHashMap(CuArray(startindices), CuArray(hashedMons), CuArray(originalIndices))
 
     return reverseDict
 end

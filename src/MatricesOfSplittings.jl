@@ -124,7 +124,7 @@ end
 
 struct MOMTSPregen
     nMons::Int
-    reverseMons::MyMap
+    reverseMons::GPUHashMap
     weakintegercompositions::CuVector{UInt}
     startindices::CuVector{Int}
     lengths::CuVector{Int}
@@ -460,7 +460,7 @@ function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encod
     return nothing 
 end
 
-function wics_gpu_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::MyMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
+function wics_gpu_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::GPUHashMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
     term = threadIdx().x + (blockIdx().x - 1) * blockDim().x
 
     if term <= length(encodedDegs)

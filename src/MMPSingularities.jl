@@ -15,7 +15,7 @@ using GradedRingUtilities
 using GPUPolynomials
 #include("../DeRham.jl/src/Utils.jl")
 
-include("utils/gpuhashmap.jl")
+include("utils/GPUHashMap.jl")
 include("utils/int128.jl")
 
 include("FrobSplittingInfra.jl")
