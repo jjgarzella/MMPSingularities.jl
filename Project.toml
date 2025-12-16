@@ -19,12 +19,5 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-AcceleratedKernels = "0.4.1"
-Adapt = "4.3.0"
-BitIntegers = "0.3.5"
-CUDA = "5.6.1"
-Combinatorics = "1.0.2"
 GPUPolynomials = "0.1.0"
-GaloisFields = "1.2.2"
-Primes = "0.5.7"
-SparseArrays = "1.11.0"
+GradedRingUtilities = "0.0.2"
