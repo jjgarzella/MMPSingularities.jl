@@ -136,6 +136,12 @@ function in_kernel_poly_frob_generator(p,poly)
   return true
 end#function
 
+"""
+    get_common_variable_factors(f)
+
+Returns the monomial with largest exponents that
+divides f
+"""
 function get_common_variable_factors(f)
     facts = collect(Oscar.factor(f))
 

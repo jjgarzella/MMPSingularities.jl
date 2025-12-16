@@ -15,6 +15,7 @@ KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 Memoize = "c03570c3-d221-55d1-a50c-7939bbd78826"
 Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
@@ -26,3 +27,4 @@ Combinatorics = "1.0.2"
 GPUPolynomials = "0.1.0"
 GaloisFields = "1.2.2"
 Primes = "0.5.7"
+SparseArrays = "1.11.0"

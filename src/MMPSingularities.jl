@@ -9,6 +9,7 @@ using InteractiveUtils
 using CUDA
 using AcceleratedKernels
 using Primes
+using SparseArrays
 import Adapt
 
 using GradedRingUtilities

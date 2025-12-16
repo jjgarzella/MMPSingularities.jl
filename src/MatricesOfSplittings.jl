@@ -165,16 +165,33 @@ function pregen_MOMTS(n, p)
     return MOMTSPregen(length(encodedMons), reverseMons, weakintegercompositions, startindices, lengths)
 end
 
-function matrix_of_multiply_then_split(poly::FqMPolyRingElem; plan = nothing, alg = 4)
-    poly = poly.data
-    return matrix_of_multiply_then_split(poly; plan = plan, alg = alg)
+function matrix_of_multiply_then_split(poly::MPolyDecRingElem, d = nothing; plan = nothing, alg = 4, use_sparse = false)
+    poly = poly.f
+
+    return matrix_of_multiply_then_split(poly, d; plan = plan, alg = alg, use_sparse = use_sparse)
 end
 
-function matrix_of_multiply_then_split(poly::fpMPolyRingElem; plan = nothing, alg = 4)
+function matrix_of_multiply_then_split(poly::FqMPolyRingElem, d = nothing; plan = nothing, alg = 4, use_sparse = false)
+    poly = poly.data
+
+    return matrix_of_multiply_then_split(poly, d; plan = plan, alg = alg, use_sparse = use_sparse)
+end
+
+function matrix_of_multiply_then_split(poly::fpMPolyRingElem, d = nothing; plan = nothing, alg = 4, use_sparse = false)
     p = poly.parent.n
     n = poly.parent.nvars
 
-    d = Int(n * (p - 1))
+    if d == nothing
+        d = Int(n * (p - 1))
+    end
+
+    D = total_degree(poly)
+    if (d + D - (n * (p-1))) % p != 0
+        # there are no terms that survive!
+        return zeros(Int,0,0)
+    end
+
+    out_deg = div(d + D - (n * (p-1)), p)
 
     coeffs = GPUPolynomials.get_coeffs(poly, UInt64)
     degs = GPUPolynomials.get_exps(poly)
@@ -186,7 +203,7 @@ function matrix_of_multiply_then_split(poly::fpMPolyRingElem; plan = nothing, al
     elseif alg == 3
         return matrix_of_multiply_then_split_merge(p, coeffs, degs, d, n, poly.bits)
     elseif alg == 4
-        return matrix_of_multiply_then_split_wics(p, coeffs, degs, d, n, poly.bits)
+        return matrix_of_multiply_then_split_wics(p, coeffs, degs, d, n, poly.bits; out_deg = Int(out_deg), use_sparse = use_sparse)
     elseif alg == 5
         return matrix_of_multiply_then_split_wics_gpu(p, CuArray(coeffs), CuArray(degs), d, n, poly.bits, plan)
     else
@@ -194,11 +211,21 @@ function matrix_of_multiply_then_split(poly::fpMPolyRingElem; plan = nothing, al
     end
 end
 
-function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}; plan = nothing, alg = 4) where {T}
+function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}, d = nothing; plan = nothing, alg = 4) where {T}
     p = poly.parent.n
     n = poly.parent.nvars
 
-    d = Int(n * (p - 1))
+    if d == nothing
+        d = Int(n * (p - 1))
+    end
+
+    D = total_degree(poly)
+    if d + D - (n * (p-1)) % p != 0
+        # there are no terms that survive!
+        return zeros(Int,0,0)
+    end
+
+    out_deg = div(d + D - (n * (p-1)), p)
 
     coeffs = poly.coeffs
     degs = poly.exps
@@ -210,7 +237,7 @@ function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}; plan = nothin
     elseif alg == 3
         return matrix_of_multiply_then_split_merge(p, Array(coeffs), Array(degs), d, n, poly.bits)
     elseif alg == 4
-        return matrix_of_multiply_then_split_wics(p, Array(coeffs), Array(degs), d, n, poly.bits)
+        return matrix_of_multiply_then_split_wics(p, Array(coeffs), Array(degs), d, n, poly.bits; out_deg = out_deg)
     elseif alg == 5
         return matrix_of_multiply_then_split_wics_gpu(p, coeffs, degs, d, n, poly.bits, plan)
     else
@@ -378,13 +405,36 @@ function matrix_of_multiply_then_split_merge(p::UInt, coefs::Vector{<:Unsigned},
     result
 end
 
-function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
+"""
+Creates the matrix of multiply then split on the CPU using the WICS 
+algorithms from arXiv:2502.12428
+
+Note: here, we provide the algorithm for a possibly non-square matrix.
+This involves allocating two different dictionaries, instead of one.
+
+We could get a better algorithm if we had a specialized algorithm for
+square matrices, as we do for the GPU. However, I'm pretty sure that
+the extra memory allocated is never a bottleneck on the CPU.
+"""
+function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int; out_deg::Int = d, use_sparse=false)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
 
-    nMons = size(mons,2)
+    out_mons = gen_exp_vec(numVars,out_deg)
+    out_mons = reduce(hcat,out_mons)
 
-    result = zeros(eltype(coeffs), nMons, nMons)
+    nMons = size(mons,2)
+    nOutMons = size(out_mons,2)
+
+    println(nMons,",",nOutMons)
+    println(length(coeffs))
+    if !use_sparse
+        result = zeros(eltype(coeffs), nOutMons, nMons)
+    else
+        resI = zeros(Int,0)
+        resJ = zeros(Int,0)
+        resVals = zeros(eltype(coeffs),0)
+    end
 
     kron(vec) = base2kron(vec, bits)
     div_kron(n, m) = base2divkron(n, m, numVars, bits)
@@ -394,6 +444,16 @@ function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned},
     encodedMons = encode_degs(mons, bits)
     for i in eachindex(encodedMons)
         reverseMons[encodedMons[i]] = i
+    end
+
+    println("n = $numVars")
+    println("in_deg = $d")
+    println("out_deg = $out_deg")
+
+    reverseOutMons = Dict{UInt,Int}()
+    encodedOutMons = encode_degs(out_mons, bits)
+    for i in eachindex(encodedOutMons)
+        reverseOutMons[encodedOutMons[i]] = i
     end
 
     weakintegercompositions = [encode_degs(wics(i, numVars) .* p, bits) for i in 0:fld(d, p)]
@@ -417,11 +477,27 @@ function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned},
         for i in eachindex(thingstoadd)
             mon = initialMon + thingstoadd[i]
             new_exv = div_kron(initialDeg + thingstoadd[i] - relevant, p)
-            result[reverseMons[new_exv], reverseMons[mon]] = coeffs[term]
+            if !use_sparse
+                result[reverseOutMons[new_exv], reverseMons[mon]] = coeffs[term]
+            else
+                push!(resI,reverseOutMons[new_exv])
+                push!(resJ,reverseMons[mon])
+                push!(resVals,coeffs[term])
+            end
         end
     end
 
-    return result
+    if !use_sparse
+        return result
+    else
+        # if !(nOutMons == maximum(resI) && nMons == maximum(resJ))
+        #     push!(resI,nOutMons)
+        #     push!(resJ,nMons)
+        #     push!(resVals,0)
+        # end
+
+        return sparse(resI,resJ,resVals,nOutMons,nMons)
+    end
 end
 
 function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)

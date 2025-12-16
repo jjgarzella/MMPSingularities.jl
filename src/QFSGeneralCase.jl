@@ -188,6 +188,7 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
   KTY_ideal_generators = [fpminus1] # we don't actually use the initial value for anything but clarity
   KTY_pullback_generators = fpminus1 .* Fstar_gens
 
+  d = total_degree(f)
 
   while n ≤ cutoff
 
@@ -196,6 +197,8 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
 
     #display(KTY_pullback_generators)
 
+    println("Removing things that are in kernel(u)")
+    @time begin
     for i in eachindex(KTY_pullback_generators)
       g = KTY_pullback_generators[i]
 
@@ -206,6 +209,7 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
         #println("Removed generator $i")
 
       end
+    end
     end
 
     
@@ -219,10 +223,15 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
     # println(KTY_pullback_mingens)
     # println("$(length(KTY_pullback_mingens)) minimal generators")
 
-    comps = Fstar_components(KTY_pullback_generators) 
+    println("Taking the components...")
+    # println(length(KTY_pullback_generators))
+    # display(KTY_pullback_generators)
+    @time comps = Fstar_components(KTY_pullback_generators) 
 
     KTY_pullback_mingens = []
 
+    println("Taking minimal number of generators...")
+    @time begin
     for (component, hs) in comps
 
         I = ideal(hs)
@@ -233,24 +242,55 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
         i_gens = length(gens(I))
         min_i_gens = length(mingens)
         difference = i_gens - min_i_gens 
-        if 1 ≤ difference
-            println("Saved $difference generators")
-        end
+        # if 1 ≤ difference
+        #     println("Saved $difference generators")
+        # end
 
         for newgen in newgens
             push!(KTY_pullback_mingens, newgen)
         end
     end
+    end
 
-    println("Starting to apply ΘFstar")
             
     # Step 3. Apply θFstar
     # KTY_ideal_generators = θFstar.(KTY_pullback_mingens)
+    is_relevant(dd) = (dd + d*(p^2 - p) - N*(p-1)) % p == 0
 
-    KTY_ideal_generators = similar(KTY_pullback_mingens)
-    println(length(KTY_ideal_generators))
-    for i in eachindex(KTY_ideal_generators)
-        @time KTY_ideal_generators[i] = θFstar(KTY_pullback_mingens[i])
+    # println(total_degree(Δ₁fpminus1))
+    # println(d*(p^2 - p))
+    # error()
+
+    #KTY_ideal_generators = similar(KTY_pullback_mingens)
+
+    println("Filtering out irrelevant terms...")
+    @time filt = filter(x -> is_relevant(total_degree(x)), KTY_pullback_mingens)
+
+
+
+    println("Applying ΘFstar...")
+    @time begin
+    KTY_ideal_generators = similar(filt)
+    for i in eachindex(filt)
+        gen = filt[i] # filt[i]????
+        # if !is_relevant(total_degree(gen))
+        #     KTY_ideal_generators[i] = 0
+        #     continue
+        # end
+        #=@time=# KTY_ideal_generators[i] = θFstar(gen)
+        # print("$(total_degree(gen)) ")
+        # print("$(is_relevant(total_degree(gen)) ? "rel" : "norel") ")
+        # print("$(KTY_ideal_generators[i] == 0 ? "zero" : "nonzero"); ")
+        # if !is_relevant(total_degree(gen)) && KTY_ideal_generators[i] != 0
+        #     println()
+        #     println(total_degree(gen))
+        # end
+    end
+    println()
+
+    println("Before: $(length(KTY_ideal_generators))")
+    KTY_ideal_generators = KTY_ideal_generators[KTY_ideal_generators .!= 0]
+    println("After: $(length(KTY_ideal_generators))")
     end
 
 
@@ -258,6 +298,8 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
 
     # Step 4. Check whether the sequence of ideals terminatres here
 
+    println("Testing elements for membership in bracket power...")
+    @time begin
     allzero = true
 
     for generator in KTY_ideal_generators
@@ -273,6 +315,7 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
         return n
       end
 
+    end
     end
 
     allzero && return cutoff + 2 # the chain terminated early, provable infinity
@@ -292,8 +335,11 @@ function quasiFSplitHeight_lift_mingens(p,poly,cutoff)
 
     ##TODO: KTY_pullback_generators = zeros(parent(f),length(
 
+    println("Adding new elements (i.e. apply F_star)")
+    @time begin
     for gen in KTY_ideal_generators
       KTY_pullback_generators = [KTY_pullback_generators; gen .* Fstar_gens]
+    end
     end
 
   end
@@ -451,6 +497,10 @@ function quasiFSplitHeight_lift_mingens_idealsaves(p,poly,cutoff)
 
 end
 
+"""
+This one uses the wics algorithm to do multiply then split
+
+"""
 function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
   N = length(gens(parent(poly)))
 
@@ -480,6 +530,17 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
   KTY_ideal_generators = [fpminus1] # we don't actually use the initial value for anything but clarity
   KTY_pullback_generators = fpminus1 .* Fstar_gens
 
+  # momts_dict = Dict{Int,Matrix}()
+  momts_dict = Dict{Int,SparseMatrixCSC}()
+
+  # invecs_dict = Dict{Int,Vector}()
+  # outvecs_dict = Dict{Int,Vector}()
+  invecs_dict = Dict{Int,Tuple{Vector, Vector}}()
+  # outvecs_dict = Dict{Int,Vector}()
+
+  d = total_degree(f)
+
+  cache = PolyExpCache(N,:lex)
 
   while n ≤ cutoff
 
@@ -488,6 +549,8 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
 
     #display(KTY_pullback_generators)
 
+    println("Removing intersection with ker(u)")
+    @time begin
     for i in eachindex(KTY_pullback_generators)
       g = KTY_pullback_generators[i]
 
@@ -498,6 +561,7 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
         #println("Removed generator $i")
 
       end
+    end
     end
 
     
@@ -511,10 +575,15 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
     # println(KTY_pullback_mingens)
     # println("$(length(KTY_pullback_mingens)) minimal generators")
 
-    comps = Fstar_components(KTY_pullback_generators) 
+    println("Taking Fstar components...")
+    # println(length(KTY_pullback_generators))
+    # display(KTY_pullback_generators)
+    @time comps = Fstar_components(KTY_pullback_generators) 
 
     KTY_pullback_mingens = []
 
+    println("Getting minimal generators (grobener basis)...")
+    @time begin
     for (component, hs) in comps
 
         I = ideal(hs)
@@ -525,33 +594,114 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
         i_gens = length(gens(I))
         min_i_gens = length(mingens)
         difference = i_gens - min_i_gens 
-        if 1 ≤ difference
-            println("Saved $difference generators")
-        end
+        # if 1 ≤ difference
+        #     println("Saved $difference generators")
+        # end
 
         for newgen in newgens
             push!(KTY_pullback_mingens, newgen)
         end
     end
-
-    println("Starting to apply ΘFstar")
-            
-    # Step 3. Apply θFstar
-    # KTY_ideal_generators = θFstar.(KTY_pullback_mingens)
-
-    KTY_ideal_generators = similar(KTY_pullback_mingens)
-    println(length(KTY_ideal_generators))
-    for i in eachindex(KTY_ideal_generators)
-        @time KTY_ideal_generators[i] = θFstar(KTY_pullback_mingens[i])
     end
 
+    println("Starting to apply ΘFstar")
 
+    # Step 3. Apply θFstar
+    # KTY_ideal_generators = θFstar.(KTY_pullback_mingens)
+    is_relevant(dd) = (dd + d*(p^2 - p) - N*(p-1)) % p == 0
+
+    # println(total_degree(Δ₁fpminus1))
+    # println(d*(p^2 - p))
+    # error()
+
+    #KTY_ideal_generators = similar(KTY_pullback_mingens)
+
+    println("Filtering out irrelevant terms...")
+    @time filt = filter(x -> is_relevant(total_degree(x)), KTY_pullback_mingens)
+            
+
+    # i = 1
+    println("Applying MOMTS...")
+    # @time begin
+    KTY_ideal_generators = similar(filt)
+    for i in eachindex(KTY_ideal_generators)
+         #@time KTY_ideal_generators[i] = θFstar(KTY_pullback_mingens[i])
+         println("----BEGIN VECTOR-----")
+         @time begin
+         
+         gen = filt[i]
+         dd = total_degree(gen)
+         M = get!(momts_dict, d) do
+             println("Creating matrix of multiply then split for degree $d")
+             @time matrix_of_multiply_then_split(Δ₁fpminus1,d, use_sparse=true)
+         end
+
+
+         # @time begin
+
+         # gen_vec = get!(invecs_dict,d) do
+         #     zeros(Int,size(M,2))
+         # end
+         # println("get from dict")
+         I, vals = get!(invecs_dict,d) do
+             L = length(terms(gen))
+             ( zeros(Int,L), zeros(Int,L) )
+         end
+      
+         fill!(I,0)
+         fill!(vals,0)
+         
+         # new_gen_vec = get!(outvecs_dict,d) do
+         #     zeros(base_ring(R),size(M,1))
+         # end
+         
+         # only computes the first time we have d
+         GradedRingUtilities.generate_degree_forward(cache,dd)
+         GradedRingUtilities.generate_degree_reverse(cache,dd)
+
+         # @time gen_vec = polynomial_to_vector(gen.f,N)
+         # println("polynomial to sparse data")
+         (_,_,m) = polynomial_to_sparse_data!((I,vals),gen.f,N,:lex,cache,output_type=Int)
+
+         # println(I)
+         # println(vals)
+         mask = I .!= 0
+         # println("sparsevec")
+         gen_vec = sparsevec(I[mask],vals[mask],m)
+
+         # println("matmul")
+         new_gen_vec = M * gen_vec .% p
+         # @time mul!(new_gen_vec,M,gen_vec)
+
+         od = div(dd + total_degree(Δ₁fpminus1) - (N * (p-1)),p)
+         
+         GradedRingUtilities.generate_degree_forward(cache,od)
+
+         # println("vector to polynomail")
+         KTY_ideal_generators[i] = vector_to_polynomial(new_gen_vec,N-1,od,R,cache=cache)
+         println("---VECTOR TIME---")
+         end
+         println("----END VECTOR-----")
+         # i = i + 1
+         # if i == 1000
+         #     return -1
+         # end
+    end
+    # end
+
+    println("Before: $(length(KTY_ideal_generators))")
+    KTY_ideal_generators = KTY_ideal_generators[KTY_ideal_generators .!= 0]
+    println("After: $(length(KTY_ideal_generators))")
+
+    #TODO: is the following important??? probably should fix
         #TODO: Step 3.5. add fpminus1 and take minimal generating set
 
     # Step 4. Check whether the sequence of ideals terminatres here
 
     allzero = true
 
+    println("Checking whether elements are in the bracket power...")
+    @time begin
     for generator in KTY_ideal_generators
 
       if generator == zero(poly)
@@ -565,6 +715,7 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
         return n
       end
 
+    end
     end
 
     allzero && return cutoff + 2 # the chain terminated early, provable infinity
@@ -584,10 +735,12 @@ function quasiFSplitHeight_lift_mingens_wics(p,poly,cutoff)
 
     ##TODO: KTY_pullback_generators = zeros(parent(f),length(
 
+    println("Adding new generators (apply Fstar)")
+    @time begin
     for gen in KTY_ideal_generators
       KTY_pullback_generators = [KTY_pullback_generators; gen .* Fstar_gens]
     end
-
+    end
   end
 
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
