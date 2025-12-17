@@ -18,6 +18,13 @@ Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
+[sources]
+GPUPolynomials = {url = "https://github.com/alexp616/GPUPolynomials.jl"}
+GradedRingUtilities = {url = "https://github.com/UCSD-computational-number-theory/GradedRingUtilities.jl"}
+
+[workspaces]
+projects = ["test"]
+
 [compat]
 GPUPolynomials = "0.1.0"
 GradedRingUtilities = "0.0.2"
