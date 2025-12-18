@@ -220,7 +220,7 @@ function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}, d = nothing; 
     end
 
     D = total_degree(poly)
-    if d + D - (n * (p-1)) % p != 0
+    if (d + D - (n * (p-1))) % p != 0
         # there are no terms that survive!
         return zeros(Int,0,0)
     end
