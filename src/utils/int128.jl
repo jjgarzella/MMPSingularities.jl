@@ -3,11 +3,11 @@
 
 Variation of mod that assumes m != 0.
 In reality only here because 128 bit mod tries
-to compile to a CUDA intrinsic `__modti3` which doesn't
-actually exist (to my knowledge).
+to compile to a LLVM `__modti3` which doesn't
+actually exist for CUDA (to my knowledge).
 
-128 bit mod isn't used that often, so not very high up
-on priority list. Using really slow long division iterative
+128 bit mod isn't used that often, since barrett reduction exists, 
+so not very high up on priority list. Using really slow long division iterative
 algorithm right now.
 """
 @inline function unchecked_mod(x::T, m::Integer) where T<:Integer
@@ -40,6 +40,7 @@ function add_mod(x::Signed, y::Signed, m::Signed)
     return result >= m ? result - m : result
 end
 
+# Multiplication in kernels calls Julia's widen method which tries to widen 128 to BigInt
 function mywiden(x)
     throw(MethodError(mywiden, (typeof(x),)))
 end
@@ -101,7 +102,7 @@ end
 # have these intrinsics (implemented or linked in from another 
 # library), resulting in the error you encountered."
 # (https://discourse.julialang.org/t/division-for-int128-not-defined-on-gpu/62797)
-# And I don't understand enough about compilers yet to solve that.
+# Not enough of a bottleneck to warrant writing asm
 function unchecked_mod(x::UInt128, m::Integer)
     m = UInt128(m)
     remainder = UInt128(0)

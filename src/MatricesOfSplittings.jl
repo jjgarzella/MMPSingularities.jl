@@ -122,6 +122,19 @@ function matrix_of_multiply_then_split_correct(poly::FqMPolyRingElem)
     return lift_to_Int64(M)
 end
 
+"""
+    struct MOMTSPregen
+
+Holds information for WICS algorithm of generating matrix of 
+multiply then split
+
+Fields:
+- `nMons`: Dimension of vector space of homogeneous polynomial
+- `reverseMons`: Static look up table mapping monomial to its lexographical index
+- `weakintegercompositions`: Vector of bitpacked weak integer compositions tuples
+- `startindices`: Used to find start of correct set of WICS in `weakintegercompositions` to iterate through.
+- `lengths`: Used to find number of WICS in `weakintegercompositions` to iterate through. Used with startindices.
+"""
 struct MOMTSPregen
     nMons::Int
     reverseMons::GPUHashMap
@@ -130,35 +143,52 @@ struct MOMTSPregen
     lengths::CuVector{Int}
 end
 
+"""
+    function pregen_MOMTS(n, p)
+
+Returns a `MOMTSPregen` for quasi-f-split height problem in `n` variables over F_`p`
+"""
 function pregen_MOMTS(n, p)
     n = Int(n)
     p = Int(p)
-    d = n * (p - 1)
+    d = n * (p - 1) # degree
     mons = gen_exp_vec(n, d)
-    mons = reduce(hcat, mons)
+    mons = reduce(hcat, mons) # matrix where each column corresponds to a basis monomial
 
+    # Number of bits each variable gets in the bitpacked integer. Needs to bitpack 
+    # into 64 bits
     if n == 4
         bits = 16
     elseif n == 5
         bits = 12
     else
-        throw("Pregeneration not implemented")
+        throw("Pregeneration not implemented for $n variables")
     end
 
+    # bitpack basis monomials and create reverse lookup table
     encodedMons = encode_degs(mons, bits)
     reverseMons = make_dict(encodedMons)
-    encodedMons = CuArray(encodedMons)
 
+    # generate list of sets of WICS
     weakintegercompositions = [encode_degs(wics(i, n) .* p, bits) for i in 0:fld(d, p)]
+
+    # say the list of wics is [[a], [b, d, c], [e, f]]
+    # the goal is to be able to put these in a contiguous array, but still be 
+    # able to access the correct set. The solution is to maintain an extra array 
+    # of pointers to the start of each set, and an extra array containing how big 
+    # the sets are.
+    # so, we need to output [a, b, d, c, e, f], [1, 2, 5], [1, 3, 2]
     startindices = zeros(Int, length(weakintegercompositions))
     curridx = 1
-
     for i in eachindex(startindices)
         startindices[i] = curridx
         curridx += length(weakintegercompositions[i])
     end
     startindices = CuArray(startindices)
+
     lengths = CuArray([length(weakintegercompositions[i]) for i in eachindex(weakintegercompositions)])
+
+    # collapse list of sets of WICS into single contiguous array
     weakintegercompositions = reduce(vcat, weakintegercompositions)
     weakintegercompositions = CuArray(weakintegercompositions)
 
@@ -177,11 +207,28 @@ function matrix_of_multiply_then_split(poly::FqMPolyRingElem, d = nothing; plan 
     return matrix_of_multiply_then_split(poly, d; plan = plan, alg = alg, use_sparse = use_sparse)
 end
 
+"""
+    function matrix_of_multiply_then_split(poly::fpMPolyRingElem, d = nothing; plan = nothing, alg = 4, use_sparse = false)
+
+Computes the matrix of multiply then split associated with given homogeneous polynomial
+
+Params:
+- `poly`: Given polynomial
+- `d`: Homogeneous degree of polynomial. If provided, removes short redundant computation
+- `plan`: Provide a `MOMTSPregen` if needed
+- `alg`: Selects which algorithm to use. Algorithms are described in arXiv:2502.12428
+    - `1: TRIV`
+    - `2: TRIV GPU`
+    - `3: MERGE`
+    - `4: WICS`
+    - `5: GPU`
+- `use_sparse`: Whether to use the sparse version of WICS algorithm
+"""
 function matrix_of_multiply_then_split(poly::fpMPolyRingElem, d = nothing; plan = nothing, alg = 4, use_sparse = false)
     p = poly.parent.n
     n = poly.parent.nvars
 
-    if d == nothing
+    if d === nothing
         d = Int(n * (p - 1))
     end
 
@@ -215,7 +262,7 @@ function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}, d = nothing; 
     p = poly.parent.n
     n = poly.parent.nvars
 
-    if d == nothing
+    if d === nothing
         d = Int(n * (p - 1))
     end
 
@@ -245,6 +292,10 @@ function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}, d = nothing; 
     end
 end
 
+"""
+Iterates through each pair of terms, and check whether the coefficient 
+belongs in the matrix
+"""
 function matrix_of_multiply_then_split_triv(p,coeffs,degs,d,numVars,bits)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
@@ -279,6 +330,10 @@ function matrix_of_multiply_then_split_triv(p,coeffs,degs,d,numVars,bits)
     return result
 end
 
+"""
+Iterates through each pair of terms, and check whether the coefficient 
+belongs in the matrix on the GPU
+"""
 function matrix_of_multiply_then_split_triv_gpu(p,coeffs,degs,d,numVars,bits,pregen)
     if pregen === nothing
         pregen = pregen_MOMTS(n, p)
@@ -310,6 +365,23 @@ function matrix_of_multiply_then_split_triv_gpu(p,coeffs,degs,d,numVars,bits,pre
     return result
 end
 
+function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result)
+    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+        
+    if idx <= length(coeffs)
+        term = encodedDegs[idx]
+        @inbounds for i in eachindex(encodedMons)
+            if mod_kron(term + encodedMons[i], p) == relevant
+                new_exv = div_kron(term + encodedMons[i] - relevant, p)
+
+                result[reverseMons[new_exv], i] = coeffs[idx]
+            end
+        end
+    end
+
+    return nothing 
+end
+
 function matrix_of_multiply_then_split_merge(p::UInt, coefs::Vector{<:Unsigned}, encodedDegs::Vector{<:Unsigned}, d::Int, numVars::Int, bits::Int)
     mons = gen_exp_vec(numVars,d)
     mons = reduce(hcat,mons)
@@ -334,7 +406,6 @@ function matrix_of_multiply_then_split_merge(p::UInt, coefs::Vector{<:Unsigned},
   
     l = 1 # left index
     r = nMons # right index
-  
     
     result = zeros(eltype(coefs),nMons,nMons)
     
@@ -519,23 +590,6 @@ function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsi
     return result
 end
 
-function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encodedMons, mod_kron, div_kron, reverseMons, relevant, result)
-    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
-        
-    if idx <= length(coeffs)
-        term = encodedDegs[idx]
-        @inbounds for i in eachindex(encodedMons)
-            if mod_kron(term + encodedMons[i], p) == relevant
-                new_exv = div_kron(term + encodedMons[i] - relevant, p)
-
-                result[reverseMons[new_exv], i] = coeffs[idx]
-            end
-        end
-    end
-
-    return nothing 
-end
-
 function wics_gpu_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::CuDeviceVector{T}, numVars::Int, weakintegercompositions::CuDeviceVector{T}, lengths::CuDeviceVector{Int}, startindices::CuDeviceVector{Int}, reverseMons::GPUHashMap, bits::Int, d, div_kron, relevant::T, result) where T<:Unsigned
     term = threadIdx().x + (blockIdx().x - 1) * blockDim().x
 
@@ -555,6 +609,10 @@ function wics_gpu_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::C
     return nothing
 end
 
+"""
+For example, if given vector [3, 2, 5, 6] and p = 5, returns [4, 4, 9, 9].
+Does this all bitpacked
+"""
 function find_next_pminus1(num::T, nvars::Int, bits::Int, p::T) where T<:Number
     result = zero(T)
     mask = (one(T) << bits) - one(T)
@@ -570,6 +628,11 @@ function find_next_pminus1(num::T, nvars::Int, bits::Int, p::T) where T<:Number
     return result, added, total
 end
 
+"""
+Generates all weak integer compositions of n into k parts
+
+Taken somewhere from stack overflow
+"""
 function wics(n, k)
     x = fill(0, k)
     x[1] = n
@@ -600,6 +663,12 @@ to Julia integers
 """
 lift_to_Int64(matrix) = Int64.(map(x -> lift(ZZ,x), matrix))
 
+"""
+Bitpacks exponent vector representation of exponents into 64 bit word
+
+- `degs`: matrix where columns are exponent vectors of a list of monomials
+- `bits`: how many bits each number is allotted in the bitpacked version
+"""
 function encode_degs(degs, bits)
     result = zeros(UInt64, size(degs, 2))
     for i in eachindex(result)
@@ -609,6 +678,9 @@ function encode_degs(degs, bits)
     return result
 end
 
+"""
+Bitpacks single vector into 64 bit word
+"""
 function base2kron(vec, bits)
     result = zero(UInt64)
     for i in eachindex(vec)
@@ -617,6 +689,9 @@ function base2kron(vec, bits)
     return result
 end
 
+"""
+Broadcast divides bitpacked vector `num` by `m`.
+"""
 function base2divkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
     result = zero(T)
     mask = (one(T) << bits) - one(T)
@@ -628,6 +703,9 @@ function base2divkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
     return result
 end
 
+"""
+Broadcast mods bitpacked vector `num` by `m`.
+"""
 function base2modkron(num::T, m::T, numVars::Int, bits::Int) where T<:Unsigned
     result = zero(T)
     mask = (one(T) << bits) - one(T)

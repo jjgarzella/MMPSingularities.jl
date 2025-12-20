@@ -6,9 +6,9 @@
 #using Oscar
 
 function height_run_tests()
-    height_test_K3_3() # Have not tested any of these heights with the
-    height_test_K3_5() # guaranteed working methods, we honestly have a 
-    height_test_K3_7() # pretty big problem if they aren't right
+    height_test_K3_3()
+    height_test_K3_5()
+    height_test_K3_7()
     height_test_K3_11()
     height_test_K3_13()
     # test_matrix()

@@ -4,6 +4,9 @@ struct GPUHashMap{A, B}
     values::B
 end
 
+# Makes struct GPU compatible
+Adapt.@adapt_structure GPUHashMap
+
 function find_biggest_prime_lt(num)
     if num % 2 == 0
         temp = num - 1
@@ -30,7 +33,6 @@ function Base.getindex(mymap::GPUHashMap, key)
     return mymap.values[startidx]
 end
 
-Adapt.@adapt_structure GPUHashMap
 
 function make_dict(encodedMons)
     num = find_biggest_prime_lt(length(encodedMons) >> 1)
