@@ -100,6 +100,16 @@ function pregen_qfsheight(n, p)
     return QFSHeightPregen(Δ₁plan, momtspregen)
 end
 
+global fpm1time = 0
+global delta1time = 0
+global mattime = 0
+global matmultime = 0
+
+global fpm1_i = 0
+global delta1_i = 0
+global mat_i = 0
+global matmul_i = 0
+
 """
 Calculates the quasi-F-split height
 in the case that deg(poly) = nvars(parent(poly))
@@ -117,27 +127,42 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
     N = length(gens(parent(poly)))
   
     !isHomog(poly,ofdegree=N) && return -1
-  
-    isfsplit, fpminus1 = isFSplit2(p, poly)
+
+    
+    t = @timed isfsplit, fpminus1 = isFSplit2(p, poly)
+    global fpm1time += t.time
+    global fpm1_i += 1
+    # println("f^p-1: $(t.time)")
     isfsplit && return 1
-  
+
+    
+    t = @timed begin
     fpminus1_gpu = CufpMPolyRingElem(fpminus1.data, UInt64)
     fpminus1_gpu.opPlan = pregen.Δ₁plan
     Δ₁fpminus1 = Δ₁l(fpminus1_gpu)
-  
+    end
+    global delta1time += t.time
+    global delta1_i += 1
+    # println("Δ₁(g): $(t.time)")
+
     m = N*(p-1)
     critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
     start_vector = lift_to_Int64(vector(fpminus1,m))
-  
-  
+    
+    
+    t = @timed begin
     M = Array(matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5))
+    end
+    global mattime += t.time
+    global mat_i += 1
+    # println("creating matrix: $(t.time)")
     nMonomials = length(start_vector)
     zzs = zeros(parent(start_vector[1]),nMonomials)
   
     n = 2
   
     KTYideal_n_new_gen = (M * start_vector) .% p
-  
+    
     while n ≤ cutoff
       KTYideal_n_new_gen == zzs && return cutoff + 2
   
@@ -146,8 +171,13 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
       end
   
       n = n + 1
-  
+      
+      t = @timed begin
       KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
+      end
+      global matmultime += t.time
+      global matmul_i += 1
+      # println("matmul $n: $(t.time)")
     end
   
     return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear

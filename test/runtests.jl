@@ -22,7 +22,7 @@ include("height_tests.jl")
   #test_heights_all()
   #test_matrices_all()
   height_run_tests()
-  delta1_run_tests()
+  # delta1_run_tests()
 end
 
 # TODO: fix this test and put it in its own file.

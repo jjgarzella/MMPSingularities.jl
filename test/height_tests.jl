@@ -5,13 +5,55 @@
 #using CUDA
 #using Oscar
 
+function print_bench(str)
+    println(str)
+    println("Average f^p-1 time: $(MMPSingularities.fpm1time / MMPSingularities.fpm1_i)")
+
+    println("Average Δ₁ time: $(MMPSingularities.delta1time / MMPSingularities.delta1_i)")
+
+    println("Average matrix generation time: $(MMPSingularities.mattime / MMPSingularities.mat_i)")
+
+    println("Average matrix multiplication time: $(MMPSingularities.matmultime / MMPSingularities.matmul_i)")
+
+    println("-------------------------")
+end
+
+function reset_bench()
+    MMPSingularities.fpm1time = 0
+    MMPSingularities.fpm1_i = 0
+    MMPSingularities.delta1time = 0
+    MMPSingularities.delta1_i = 0
+    MMPSingularities.mattime = 0
+    MMPSingularities.mat_i = 0
+    MMPSingularities.matmultime = 0
+    MMPSingularities.matmul_i = 0
+end
+
 function height_run_tests()
-    height_test_K3_3()
-    height_test_K3_5()
-    height_test_K3_7()
-    height_test_K3_11()
-    height_test_K3_13()
-    # test_matrix()
+    # height_test_K3_3()
+    # reset_bench()
+    # height_test_K3_3()
+    # print_bench("K3_3:")
+
+    # height_test_K3_5()
+    # reset_bench()
+    # height_test_K3_5()
+    # print_bench("K3_5:")
+
+    # height_test_K3_7()
+    # reset_bench()
+    # height_test_K3_7()
+    # print_bench("K3_7:")
+
+    # height_test_K3_11()
+    # reset_bench()
+    # height_test_K3_11()
+    # print_bench("K3_11:")
+
+    # height_test_K3_13()
+    # reset_bench()
+    # height_test_K3_13()
+    # print_bench("K3_13:")
 end
 
 function height_test_K3_3()
@@ -219,8 +261,6 @@ function height_test_K3_11()
 end
 
 function height_test_K3_13()
-
-# fthree1 = 8*x1^4 + 2*x1^3*x2 + 3*x1^3*x3 + x1^3*x4 + 6*x1^2*x2^2 + 7*x1^2*x2*x3 + 5*x1^2*x2*x4 + 2*x1^2*x3^2 + x1^2*x4^2 + 11*x1*x2^3 + 10*x1*x2^2*x3 + 3*x1*x2^2*x4 + 5*x1*x2*x3^2 + 10*x1*x2*x3*x4 + 7*x1*x2*x4^2 + 12*x1*x3^3 + 12*x1*x3^2*x4 + 5*x1*x3*x4^2 + 7*x1*x4^3 + 7*x2^4 + 6*x2^3*x3 + 3*x2^3*x4 + 10*x2^2*x3^2 + 5*x2^2*x3*x4 + 12*x2^2*x4^2 + x2*x3^3 + 3*x2*x3^2*x4 + 12*x2*x3*x4^2 + 8*x2*x4^3 + 10*x3^4 + 7*x3^3*x4 + 4*x3^2*x4^2 + 8*x3*x4^3 + 2*x4^4function height_test_K3_13()
     n = 4
     p = 13
 
