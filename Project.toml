@@ -7,6 +7,7 @@ Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 BitIntegers = "c3b6d118-76ef-56ca-8cc7-ebb389d030a1"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+CudaNTTs = "355ed90f-8f14-42c1-a87f-2eca0abd88af"
 GPUPolynomials = "cd56b521-fb58-49b4-80c2-43283f39a4e1"
 GaloisFields = "8d0d7f98-d412-5cd4-8397-071c807280aa"
 GradedRingUtilities = "ac2b5ee4-d872-4ff4-b600-35f8f75c8465"
@@ -22,9 +23,10 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 GPUPolynomials = {url = "https://github.com/alexp616/GPUPolynomials.jl"}
 GradedRingUtilities = {url = "https://github.com/UCSD-computational-number-theory/GradedRingUtilities.jl"}
 
-[workspaces]
-projects = ["test"]
-
 [compat]
+CudaNTTs = "1.1.1"
 GPUPolynomials = "0.1.0"
 GradedRingUtilities = "0.0.2"
+
+[workspaces]
+projects = ["test", "benchmarks"]

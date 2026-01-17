@@ -374,7 +374,7 @@ function matrix_of_multiply_then_split_gpu_kernel!(p, coeffs, encodedDegs, encod
             if mod_kron(term + encodedMons[i], p) == relevant
                 new_exv = div_kron(term + encodedMons[i] - relevant, p)
 
-                result[reverseMons[new_exv], i] = coeffs[idx]
+                result[reverseMons[new_exv], i] += coeffs[idx]
             end
         end
     end
@@ -517,10 +517,6 @@ function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned},
         reverseMons[encodedMons[i]] = i
     end
 
-    println("n = $numVars")
-    println("in_deg = $d")
-    println("out_deg = $out_deg")
-
     reverseOutMons = Dict{UInt,Int}()
     encodedOutMons = encode_degs(out_mons, bits)
     for i in eachindex(encodedOutMons)
@@ -549,7 +545,7 @@ function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned},
             mon = initialMon + thingstoadd[i]
             new_exv = div_kron(initialDeg + thingstoadd[i] - relevant, p)
             if !use_sparse
-                result[reverseOutMons[new_exv], reverseMons[mon]] = coeffs[term]
+                result[reverseOutMons[new_exv], reverseMons[mon]] += coeffs[term]
             else
                 push!(resI,reverseOutMons[new_exv])
                 push!(resJ,reverseMons[mon])
@@ -602,7 +598,8 @@ function wics_gpu_kernel(p::T, coeffs::CuDeviceVector{<:Integer}, encodedDegs::C
         for i in 0:numthingstoadd - 1
             mon = initialMon + weakintegercompositions[wicsstartidx + i]
             new_exv = div_kron(initialDeg + weakintegercompositions[wicsstartidx + i] - relevant, p)
-            result[reverseMons[new_exv], reverseMons[mon]] = coeffs[term]
+            @cuassert result[reverseMons[new_exv], reverseMons[mon]] == 0 # Seems to be true, we just don't have a proof yet
+            result[reverseMons[new_exv], reverseMons[mon]] += coeffs[term]
         end
     end
 

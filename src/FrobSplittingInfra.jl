@@ -287,8 +287,6 @@ function Δ₁l(p,poly)
 
   ZR = parent(originallift)
 
-
-
   nocrossterms = sum(terms(originallift) .^p)
   withcrossterms = originallift^p
 
@@ -310,21 +308,62 @@ end#function
 function Δ₁l(poly::FqMPolyRingElem)
     p = poly.parent.data.n
     R = parent(poly)
-  
-    originallift = map_coefficients(x -> lift(ZZ,x),poly)
-  
-    ZR = parent(originallift)
-  
-    nocrossterms = sum(terms(originallift) .^p)
-    withcrossterms = originallift^p
+
+    originallift = map_coefficients(x -> lift(ZZ, x),poly)
+
+    nocrossterms = sum(terms(originallift) .^ p)
+    withcrossterms = originallift ^ p
     crossterms = withcrossterms - nocrossterms
-    Δlift = map_coefficients(x -> divexact(x,p),crossterms)
+    Δlift = map_coefficients(x -> divexact(x, p),crossterms)
   
-    change_coefficient_ring(coefficient_ring(R),Δlift,parent=R)
+    change_coefficient_ring(coefficient_ring(R), Δlift, parent=R)
+end
+
+"""
+Returns Δ₁(poly), computed by
+lifting ℤ/p²ℤ.
+"""
+function Δ₁lp²(poly::FqMPolyRingElem)
+    p = poly.parent.data.n
+    R = parent(poly)
+    n = poly.parent.data.nvars
+
+    zzpoly = map_coefficients(x -> lift(ZZ, x), poly)
+    ZZmp², _ = residue_ring(ZZ, p ^ 2)
+    ZZmp²PolyRing, _ = polynomial_ring(ZZmp², n)
+
+    originallift = change_base_ring(ZZmp², zzpoly; parent = ZZmp²PolyRing)
+
+    nocrossterms = sum(terms(originallift) .^ p)
+    withcrossterms = originallift ^ p
+    crossterms = withcrossterms - nocrossterms
+
+    Δlift = map_coefficients(x -> divexact(x, p), crossterms)
+    Δlift = map_coefficients(x -> lift(ZZ, x), Δlift)
+
+    change_coefficient_ring(coefficient_ring(R), Δlift, parent=R)
 end
 
 nvars(x::CufpMPolyRingElem) = x.parent.nvars
 
+"""
+    struct Δ₁Plan <: GPUPolynomials.OperationPlan
+
+Struct caching information for computing Δ₁(`g`) quickly using 
+multi-modular ntt and chinese remainder theorem
+
+Fields:
+    - `numVars`: number of variables
+    - `prime`: characteristic of field of `g`
+    - `key`: 1 + `totalDegree`, used to injectively map multivariate polynomial to univariate
+    - `fftLen`: fft size
+    - `totalDegree`: resulting homogeneous degree of `g` ^ `prime`
+    - `primeArray`: list of NTT primes, their product being upper bond of `g` ^ `prime`
+    - `nttType`: Integer type of NTT, currently always going to be UInt64
+    - `nttPowPlans`: cached data for each NTT prime for speeding up NTT
+    - `crtPlan`: some cached numbers for speeding up CRT
+    - `memoryefficient`: if true, uses (significantly) slower algorithm with less GPU memory
+"""
 struct Δ₁Plan <: GPUPolynomials.OperationPlan
     numVars::Int
     prime::Int
@@ -338,23 +377,27 @@ struct Δ₁Plan <: GPUPolynomials.OperationPlan
     memoryefficient::Bool
 end
 
+"""
+    function plan_Δ₁(numVars, prime)::Δ₁Plan
+
+Generates a Δ₁Plan correpsonding to the quasi-f-split height problem where 
+numVars = degree
+"""
 function plan_Δ₁(numVars, prime)::Δ₁Plan
     memoryefficient = false
     if (numVars, prime) == (4, 2)
-        primeArray = UInt.([12289])
+        primeArray = UInt64.([12289])
     elseif (numVars, prime) == (4, 3)
-        # primeArray = UInt64.([114689])
-        primeArray = UInt.([0x3ffffff960000001])
+        primeArray = UInt64.([0x3ffffff960000001])
     elseif (numVars, prime) == (4, 5)
-        # primeArray = UInt32.([13631489, 23068673])
-        primeArray = UInt.([0x3ffffff960000001])
+        primeArray = UInt64.([0x3ffffff960000001])
     elseif (numVars, prime) == (4, 7)
-        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001])
+        primeArray = UInt64.([0x3ffffff960000001, 0x3ffffff760000001])
     elseif (numVars, prime) == (4, 11)
-        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
+        primeArray = UInt64.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
         memoryefficient = true
     elseif (numVars, prime) == (4, 13)
-        primeArray = UInt.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
+        primeArray = UInt64.([0x3ffffff960000001, 0x3ffffff760000001, 0x3fffffeec0000001,  0x3fffffee60000001])
         memoryefficient = true
     else
         throw(ArgumentError("I haven't figured out bounds for this yet!"))
@@ -376,9 +419,12 @@ function plan_Δ₁(numVars, prime)::Δ₁Plan
     return Δ₁Plan(numVars, prime, key, fftLen, resultTotalDegree, primeArray, eltype(primeArray), nttPowPlans, crtPlan, memoryefficient)
 end
 
+"""
+Returns Δ₁(poly), computed on the GPU by
+lifting to ℤ
+"""
 function Δ₁l(g::CufpMPolyRingElem)
     if !(g.opPlan isa Δ₁Plan)
-        println("g.parent.n: $(g.parent.n)")
         g.opPlan = plan_Δ₁(nvars(g), g.parent.n)
     end
 
@@ -389,6 +435,11 @@ function Δ₁l(g::CufpMPolyRingElem)
     end
 end
 
+"""
+    function fast_Δ₁(g::CufpMPolyRingElem)
+
+Computes g ^ p with multi-modular NTT and CRT, all on the GPU
+"""
 function fast_Δ₁(g::CufpMPolyRingElem)
     numVars = nvars(g)
 
@@ -404,20 +455,25 @@ function fast_Δ₁(g::CufpMPolyRingElem)
     remove_pth_power_terms(g, g.opPlan.key, vecs, g.opPlan.prime, g.opPlan.primeArray)
 
     multimodResultCoeffs, encodedDegs = GPUPolynomials.sparsify(vecs)
+    CUDA.unsafe_free!(vecs)
 
     resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
-    # display(resultCoeffs)
-    # max = maximum(resultCoeffs)
-    # println("max: $(max), log2: $(log2(max))")
-    # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
+    CUDA.unsafe_free!(multimodResultCoeffs)
+
     divide_and_mod!(resultCoeffs, g.opPlan.prime)
     resultCoeffs = UInt64.(resultCoeffs)
 
     resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, g.opPlan.key, numVars, g.opPlan.totalDegree, g.bits, UInt)
+    CUDA.unsafe_free!(encodedDegs)
 
     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
 end
 
+"""
+    function fast_Δ₁(g::CufpMPolyRingElem)
+
+Computes g ^ p with multi-modular NTT and CPU CRT.
+"""
 function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     numVars = nvars(g)
 
@@ -440,13 +496,10 @@ function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     encodedDegs = CuArray(encodedDegs)
 
     resultCoeffs = GPUPolynomials.build_result(multimodResultCoeffs, g.opPlan.crtPlan)
-    # @assert all(x -> x % eltype(resultCoeffs)(g.opPlan.prime) == zero(eltype(resultCoeffs)), Array(resultCoeffs))
     
     p = eltype(resultCoeffs)(g.opPlan.prime)
     cpu_resultCoeffs = Array(resultCoeffs)
-    # max = maximum(resultCoeffs)
-    # println("max: $(max), log2: $(log2(max))")
-    # @assert all(x -> x % p == 0, cpu_resultCoeffs)
+
     cpu_resultCoeffs .÷= p
     cpu_resultCoeffs .%= p
     cpu_resultCoeffs = UInt64.(cpu_resultCoeffs)
@@ -457,98 +510,184 @@ function memoryefficient_Δ₁(g::CufpMPolyRingElem)
     return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, g.opPlan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
 end
 
+"""
+    struct Δ₁Plan <: GPUPolynomials.OperationPlan
 
-function divide_and_mod!(coeffs::CuVector{T}, prime::Integer) where T<:Unsigned
-    p = T(prime)
+Struct caching information for computing Δ₁(`g`) quickly using 
+multi-modular ntt and chinese remainder theorem
 
-    kernel = @cuda launch=false divide_and_mod_kernel!(coeffs, p)
-    config = launch_configuration(kernel.fun)
-    threads = min(length(coeffs), config.threads)
-    blocks = cld(length(coeffs), threads)
-
-    CUDA.@sync kernel(coeffs, p; threads = threads, blocks = blocks)
+Fields:
+    - `numVars`: number of variables
+    - `prime`: characteristic of field of `g`
+    - `smallKey` and `key`: used to injectively map multivariate polynomial to univariate
+    - `smallFftLen` and `fftLen`: fft size
+    - `smallForwardNTTPlan`, `smallInverseNTTPlan`, `forwardNTTPlan`, `inverseNTTPlan`: Cached data for performing NTTs
+    - `totalDegree`: resulting homogeneous degree of `g` ^ `prime`
+    - `fftPrime`: prime satisfying p = 2*fftlen + 1, hard coded to 0x3fffc00000000001
+    - `itrs`: determines how many multiplication steps to take. `prime` = `power1` * `itrs` + `power2` is always true
+"""
+struct Δ₁lp²Plan <: GPUPolynomials.OperationPlan
+    numVars::Int
+    prime::Int
+    smallKey::Int
+    smallFftLen::Int
+    smallForwardNTTPlan::NTTPlan
+    smallInverseNTTPlan::INTTPlan
+    key::Int
+    fftLen::Int
+    totalDegree::Int
+    forwardNTTPlan::NTTPlan
+    inverseNTTPlan::INTTPlan
+    fftPrime::UInt64
+    itrs::Int
+    power1::Int
+    power2::Int
 end
 
-function divide_and_mod_kernel!(coeffs::CuDeviceVector{T}, prime::T) where T<:Unsigned
-    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
-    
-    if idx <= length(coeffs)
-        @inbounds begin
-            coeffs[idx] = unchecked_div(coeffs[idx], prime)
-            coeffs[idx] = unchecked_mod(coeffs[idx], prime)
-        end
-    end
+"""
+    function plan_Δ₁lp²(numVars, prime)::Δ₁lp²Plan
 
-    return nothing
-end
-
-function generate_remove_indices(intermediate::CufpMPolyRingElem, key::Int, pow::Int)
-    coeffs = Array(intermediate.coeffs)
-    degrees = Array(intermediate.exps)
-    bits = intermediate.bits
-    mask = (one(eltype(coeffs)) << bits) - 1
-
-    keyPowers = [key ^ i for i in 0:nvars(intermediate) - 2]
-
-    indices = zeros(Int, length(coeffs))
-    subtract = zeros(eltype(coeffs), length(coeffs))
-    degrees .*= pow
-    for i in eachindex(degrees)
-        resultidx = 1
-        deg = degrees[i]
-        for i in 1:nvars(intermediate) - 1
-            resultidx += (deg & mask) * keyPowers[i]
-            deg >>= bits
-        end
-        indices[i] = resultidx
-        subtract[i] = coeffs[i] ^ pow
-    end
-
-    return indices, subtract
-end
-
-function remove_pth_power_terms(intermediate::CufpMPolyRingElem, key::Int, vec, p::Int, primeArray)
-    removeindices, subtract = generate_remove_indices(intermediate, key, p)
-    if vec isa CuArray
-        gpu_remove_pth_power_terms(CuArray(removeindices), CuArray(subtract), vec, CuArray(primeArray))
+Generates a Δ₁Plan correpsonding to the quasi-f-split height problem where 
+numVars = degree
+"""
+function plan_Δ₁lp²(numVars, prime)::Δ₁lp²Plan
+    fftprime = 0x3fffc00000000001
+    if (numVars, prime) == (4, 2)
+        itrs = 0
+        power1, power2 = 0, 2
+    elseif (numVars, prime) == (4, 3)
+        itrs = 0
+        power1, power2 = 0, 3
+    elseif (numVars, prime) == (4, 5)
+        itrs = 0
+        power1, power2 = 0, 5
+    elseif (numVars, prime) == (4, 7)
+        itrs = 1
+        power1, power2 = 4, 3
+    elseif (numVars, prime) == (4, 11)
+        itrs = 2
+        power1, power2 = 4, 3
+    elseif (numVars, prime) == (4, 13)
+        itrs = 3
+        power1, power2 = 4, 1
     else
-        cpu_remove_pth_power_terms(removeindices, subtract, vec, primeArray)
+        throw(ArgumentError("I haven't figured out bounds for this yet!"))
     end
 
-    return nothing
-end
+    smallTotalDegree = numVars * (prime - 1) * max(power1, power2)
+    smallKey = smallTotalDegree + 1
+    smallFftLen = Base._nextpow2(smallTotalDegree * smallKey ^ (numVars - 2) + 1)
+    smallForwardPlan, smallInversePlan = plan_ntt(smallFftLen, fftprime, primitive_nth_root_of_unity(smallFftLen, fftprime))
 
-function cpu_remove_pth_power_terms(removeindices, subtract, arr, primeArray)
-    for i in eachindex(removeindices)
-        removeidx = removeindices[i]
-        for p in axes(arr, 2)
-            arr[removeidx, p] = sub_mod(arr[removeidx, p], subtract[i], primeArray[p])
-        end
+    if itrs > 0
+        resultTotalDegree = numVars * (prime - 1) * prime
+        key = resultTotalDegree + 1
+        fftLen = Base._nextpow2(resultTotalDegree * key ^ (numVars - 2) + 1)
+        forwardPlan, inversePlan = plan_ntt(fftLen, fftprime, primitive_nth_root_of_unity(fftLen, fftprime))
+    else
+        resultTotalDegree = smallTotalDegree
+        key = smallKey
+        fftLen = smallFftLen
+        forwardPlan, inversePlan = smallForwardPlan, smallInversePlan
     end
 
-    return nothing
+    return Δ₁lp²Plan(numVars, prime, smallKey, smallFftLen, smallForwardPlan, smallInversePlan, key, fftLen, resultTotalDegree, forwardPlan, inversePlan, fftprime, itrs, power1, power2)
 end
 
-function gpu_remove_pth_power_terms(removeindices::CuArray, subtract::CuArray, arr::CuArray, primeArray::CuArray)
-    kernel = @cuda launch=false gpu_remove_pth_power_terms_kernel!(removeindices, subtract, arr, primeArray)
-    config = launch_configuration(kernel.fun)
-    threads = min(length(removeindices), config.threads)
-    blocks = cld(length(removeindices), threads)
-
-    kernel(removeindices, subtract, arr, primeArray; threads = threads, blocks = blocks)
-end
-
-function gpu_remove_pth_power_terms_kernel!(removeindices, subtract, vec, primeArray)
-    idx = threadIdx().x + (blockIdx().x - 1) * blockDim().x
-
-    if idx <= length(removeindices)
-        removeidx = removeindices[idx]
-        for p in axes(vec, 2)
-            vec[removeidx, p] = sub_mod(vec[removeidx, p], subtract[idx], primeArray[p])
-        end
+function Δ₁lp²(g::CufpMPolyRingElem)
+    if !(g.opPlan isa Δ₁lp²Plan)
+        g.opPlan = plan_Δ₁lp²(nvars(g), g.parent.n)
     end
 
-    return nothing
+    if g.opPlan.itrs == 0
+        return small_Δ₁lp²(g)
+    else
+        return large_Δ₁lp²(g)
+    end
+end
+
+function small_Δ₁lp²(g::CufpMPolyRingElem)
+    plan = g.opPlan
+    p = UInt64(plan.prime)
+    m = plan.forwardNTTPlan.reducer
+
+    # convert g to dense fft form
+    v = vec(GPUPolynomials.get_dense_representation(g, plan.smallFftLen, g.bits, UInt64, plan.smallKey, 1))
+
+    # compute g^p
+    ntt!(v, v, plan.smallForwardNTTPlan, true)
+    GPUPolynomials.broadcast_pow!(v, plan.power2, m)
+    intt!(v, v, plan.smallInverseNTTPlan, true)
+    v .%= p ^ 2
+
+    # subtract cross terms
+    remove_pth_power_terms(g, plan.key, v, plan.prime, [p ^ 2])
+
+    # make data sparse to eliminate unnecessary computations
+    resultCoeffs, encodedDegs = GPUPolynomials.sparsify(v)
+    CUDA.unsafe_free!(v)
+    resultCoeffs = vec(resultCoeffs)
+
+    divide_and_mod!(resultCoeffs, plan.prime)
+
+    # change encoding of degrees to bitpacked form
+    resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, plan.key, plan.numVars, plan.totalDegree, g.bits, UInt64)
+
+    CUDA.unsafe_free!(encodedDegs)
+
+    return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, plan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
+end
+
+function large_Δ₁lp²(g::CufpMPolyRingElem)
+    plan = g.opPlan
+    p = UInt64(plan.prime)
+    m = plan.forwardNTTPlan.reducer
+    itrs = plan.itrs
+
+    # convert g to dense fft form
+    smallv = vec(GPUPolynomials.get_dense_representation(g, plan.smallFftLen, g.bits, UInt64, plan.smallKey, 1))
+
+    ntt!(smallv, smallv, plan.smallForwardNTTPlan, true)
+
+    smallaux = copy(smallv)
+    GPUPolynomials.broadcast_pow!(smallaux, plan.power1, m)
+    intt!(smallaux, smallaux, plan.smallInverseNTTPlan, true)
+    smallaux .%= p ^ 2 # smallaux holds g^pow1
+    
+    aux = CUDA.zeros(UInt64, plan.fftLen)
+    change_encoding(smallaux, aux, plan.smallKey, plan.key, plan.numVars) # aux holds g^pow1
+    CUDA.unsafe_free!(smallaux)
+    ntt!(aux, aux, plan.forwardNTTPlan, true)
+
+    GPUPolynomials.broadcast_pow!(smallv, plan.power2, m)
+    intt!(smallv, smallv, plan.smallInverseNTTPlan, true)
+    smallv .%= p ^ 2 # smallv holds g^pow2
+
+    v = CUDA.zeros(UInt64, plan.fftLen)
+    change_encoding(smallv, v, plan.smallKey, plan.key, plan.numVars) # v holds g^pow2
+    CUDA.unsafe_free!(smallv)
+    
+    for i in 1:itrs
+        ntt!(v, v, plan.forwardNTTPlan, true)
+        broadcast_mul!(v, aux, plan.forwardNTTPlan.reducer) # v = v * aux
+        intt!(v, v, plan.inverseNTTPlan, true)
+        v .%= p ^ 2
+    end
+
+    CUDA.unsafe_free!(aux)
+
+    remove_pth_power_terms(g, plan.key, v, plan.prime, [p ^ 2])
+
+    resultCoeffs, encodedDegs = GPUPolynomials.sparsify(v)
+    resultCoeffs = vec(resultCoeffs)
+    CUDA.unsafe_free!(v)
+    
+    divide_and_mod!(resultCoeffs, plan.prime)
+
+    resultDegs = GPUPolynomials.kronecker_to_bitpacked(encodedDegs, plan.key, plan.numVars, plan.totalDegree, g.bits, UInt64)
+    CUDA.unsafe_free!(encodedDegs)
+
+    return CufpMPolyRingElem(resultCoeffs, resultDegs, g.bits, true, plan.totalDegree, g.parent, GPUPolynomials.EmptyPlan())
 end
 
 

@@ -89,12 +89,12 @@ function isFSplit2(prime, poly)
 end
 
 struct QFSHeightPregen
-    Δ₁plan::Δ₁Plan
+    Δ₁plan::Δ₁lp²Plan
     momtspregen::MOMTSPregen
 end
 
 function pregen_qfsheight(n, p)
-    Δ₁plan = plan_Δ₁(n, p)
+    Δ₁plan = plan_Δ₁lp²(n, p)
     momtspregen = pregen_MOMTS(n, p)
 
     return QFSHeightPregen(Δ₁plan, momtspregen)
@@ -123,7 +123,7 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
   
     fpminus1_gpu = CufpMPolyRingElem(fpminus1.data, UInt64)
     fpminus1_gpu.opPlan = pregen.Δ₁plan
-    Δ₁fpminus1 = Δ₁l(fpminus1_gpu)
+    Δ₁fpminus1 = Δ₁lp²(fpminus1_gpu)
   
     m = N*(p-1)
     critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
@@ -149,7 +149,6 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
   
       KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
     end
-  
     return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
 end#function
 

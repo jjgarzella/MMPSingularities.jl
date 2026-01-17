@@ -14,10 +14,12 @@ import Adapt
 
 using GradedRingUtilities
 using GPUPolynomials
+using CudaNTTs
 #include("../DeRham.jl/src/Utils.jl")
 
 include("utils/GPUHashMap.jl")
 include("utils/int128.jl")
+include("utils/Delta1Helpers.jl")
 
 include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")

@@ -1,0 +1,5 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+MMPSingularities = "bdc0cb22-a987-4314-9a0f-3fd22c4d92b7"
+Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
