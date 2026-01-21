@@ -38,7 +38,7 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
         while true
             f = randompoly()
             samples += 1
-            height = MMPSingularities.quasiFSplitHeight_CY_lift_sort_gpu(p, f, 10, pregen)
+            height = MMPSingularities.quasiFSplitHeight_CY_lift_wics_gpu(p, f, 10, pregen)
             
             if height == 11 || height == 12
                 heights[11] += 1
