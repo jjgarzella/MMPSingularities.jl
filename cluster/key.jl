@@ -1,0 +1,4 @@
+SupabaseClient(
+    "https://jaatjgvtnvzpamkzpuqg.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphYXRqZ3Z0bnZ6cGFta3pwdXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Mzk4MjMsImV4cCI6MjA4NDUxNTgyM30.TaFkutI3P6SjXBM3OD_b1YVU7UIMniZEGol5hU_OOjc"
+)

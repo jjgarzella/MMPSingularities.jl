@@ -1,0 +1,7 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+MMPSingularities = "bdc0cb22-a987-4314-9a0f-3fd22c4d92b7"
+Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
