@@ -1,4 +1,4 @@
-include("../src/MMPSingularities.jl")
+using MMPSingularities
 
 using Oscar
 using CUDA

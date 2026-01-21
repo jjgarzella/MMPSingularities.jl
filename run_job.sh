@@ -4,4 +4,4 @@
 julia --project=cluster -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
 
 # Run the actual job
-exec julia --project=cluster/ -e 'include("cluster/run.jl")'
+exec julia --threads 4 --project=cluster/ -e 'include("cluster/run.jl")'
