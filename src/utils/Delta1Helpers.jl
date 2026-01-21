@@ -1,3 +1,5 @@
+
+
 function change_encoding(small::CuVector{T}, large::CuVector{T}, smallKey::Int, largeKey::Int, nvars::Int) where T<:Integer
     kernel = @cuda launch=false change_encoding_kernel!(small, large, smallKey, largeKey, nvars)
     config = launch_configuration(kernel.fun)

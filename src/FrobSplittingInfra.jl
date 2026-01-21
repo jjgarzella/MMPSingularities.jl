@@ -551,7 +551,8 @@ Generates a Δ₁Plan correpsonding to the quasi-f-split height problem where
 numVars = degree
 """
 function plan_Δ₁lp²(numVars, prime)::Δ₁lp²Plan
-    fftprime = 0x3fffc00000000001
+    # fftprime = 0x3fffc00000000001
+    fftprime = 0xffffffff00000001
     if (numVars, prime) == (4, 2)
         itrs = 0
         power1, power2 = 0, 2
@@ -577,13 +578,13 @@ function plan_Δ₁lp²(numVars, prime)::Δ₁lp²Plan
     smallTotalDegree = numVars * (prime - 1) * max(power1, power2)
     smallKey = smallTotalDegree + 1
     smallFftLen = Base._nextpow2(smallTotalDegree * smallKey ^ (numVars - 2) + 1)
-    smallForwardPlan, smallInversePlan = plan_ntt(smallFftLen, fftprime, primitive_nth_root_of_unity(smallFftLen, fftprime))
+    smallForwardPlan, smallInversePlan = plan_ntt(smallFftLen, fftprime, primitive_nth_root_of_unity(smallFftLen, fftprime); reducer=GoldilocksReducer())
 
     if itrs > 0
         resultTotalDegree = numVars * (prime - 1) * prime
         key = resultTotalDegree + 1
         fftLen = Base._nextpow2(resultTotalDegree * key ^ (numVars - 2) + 1)
-        forwardPlan, inversePlan = plan_ntt(fftLen, fftprime, primitive_nth_root_of_unity(fftLen, fftprime))
+        forwardPlan, inversePlan = plan_ntt(fftLen, fftprime, primitive_nth_root_of_unity(fftLen, fftprime); reducer=GoldilocksReducer())
     else
         resultTotalDegree = smallTotalDegree
         key = smallKey

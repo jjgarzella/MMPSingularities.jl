@@ -20,6 +20,7 @@ using CudaNTTs
 include("utils/GPUHashMap.jl")
 include("utils/int128.jl")
 include("utils/Delta1Helpers.jl")
+include("utils/goldilocks.jl")
 
 include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")

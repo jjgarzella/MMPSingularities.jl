@@ -24,7 +24,7 @@ GPUPolynomials = {url = "https://github.com/alexp616/GPUPolynomials.jl"}
 GradedRingUtilities = {url = "https://github.com/UCSD-computational-number-theory/GradedRingUtilities.jl"}
 
 [compat]
-CudaNTTs = "1.1.1"
+CudaNTTs = "1.2.0"
 GPUPolynomials = "0.1.0"
 GradedRingUtilities = "0.0.2"
 
