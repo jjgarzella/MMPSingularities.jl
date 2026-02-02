@@ -113,7 +113,171 @@ Uses the matrix representaion of θFstar to compute the height,
 and uses the all-in-one-step method for getting this matrix,
 rather than repeatedly evaluating.
 """
+function _pad_copy_matrix_float32(M::AbstractMatrix)
+    m, n = size(M)
+    dest = CUDA.zeros(Float32, m + 32, n + 32)
+    src = CuArray(Float32.(M))
+    copyto!(view(dest, 1:m, 1:n), src)
+    return dest
+end
+
+function _pad_copy_vector_float32(v::AbstractVector)
+    n = length(v)
+    dest = CUDA.zeros(Float32, n + 32, 1 + 32)
+    src = reshape(CuArray(Float32.(v)), n, 1)
+    copyto!(view(dest, 1:n, 1), src)
+    return dest
+end
+
 function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
+    N = length(gens(parent(poly)))
+  
+    !isHomog(poly,ofdegree=N) && return -1
+  
+    isfsplit, fpminus1 = isFSplit2(p, poly)
+    isfsplit && return 1
+  
+    fpminus1_gpu = CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = pregen.Δ₁plan
+    Δ₁fpminus1 = Δ₁lp²(fpminus1_gpu)
+  
+    m = N*(p-1)
+    critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
+    start_vector = lift_to_Int64(vector(fpminus1,m))
+  
+  
+    M_original = matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5)
+
+    m_rows, m_cols = size(M_original)
+    M_data = _pad_copy_matrix_float32(M_original)
+    M = CuModMatrix(M_data, p; new_size=(m_rows, m_cols))
+
+    nMonomials = length(start_vector)
+    
+    start_vector_data = _pad_copy_vector_float32(start_vector)
+    start_vector_gpu = CuModMatrix(start_vector_data, p; new_size=(nMonomials, 1))
+
+    padded_out_rows = m_rows + GPUFiniteFieldMatrices.TILE_WIDTH
+    padded_out_cols = 1 + GPUFiniteFieldMatrices.TILE_WIDTH
+
+    KTYideal = CuModMatrix(CUDA.zeros(Float32, padded_out_rows, padded_out_cols), p; new_size=(m_rows, 1))
+    KTYideal_next = CuModMatrix(CUDA.zeros(Float32, padded_out_rows, padded_out_cols), p; new_size=(m_rows, 1))
+  
+    n = 2
+  
+    GPUFiniteFieldMatrices.stripe_mul!(KTYideal, M, start_vector_gpu)
+  
+    while n ≤ cutoff
+      if CUDA.all(iszero, @view KTYideal.data[1:m_rows, 1])
+        return cutoff + 2
+      end
+  
+      if CUDA.@allowscalar KTYideal[critical_ind, 1] != 0
+        return n
+      end
+  
+      n = n + 1
+  
+      GPUFiniteFieldMatrices.stripe_mul!(KTYideal_next, M, KTYideal)
+      KTYideal, KTYideal_next = KTYideal_next, KTYideal
+    end
+    return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end
+
+function quasiFSplitHeight_CY_lift_wics_gpu_cpu_check(p, poly, cutoff, pregen)
+    N = length(gens(parent(poly)))
+
+    !isHomog(poly, ofdegree = N) && return -1
+
+    isfsplit, fpminus1 = isFSplit2(p, poly)
+    isfsplit && return 1
+
+    fpminus1_gpu = CufpMPolyRingElem(fpminus1.data, UInt64)
+    fpminus1_gpu.opPlan = pregen.Δ₁plan
+    Δ₁fpminus1 = Δ₁lp²(fpminus1_gpu)
+
+    m = N * (p - 1)
+    critical_ind = index_of_term_not_in_frobenius_power_CY(p, N)
+    start_vector_cpu = lift_to_Int64(vector(fpminus1, m))
+
+    M_cpu = Array(matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5))
+    nMonomials = length(start_vector_cpu)
+    zzs = zeros(parent(start_vector_cpu[1]), nMonomials)
+    KTY_cpu = (M_cpu * start_vector_cpu) .% p
+
+    M_original = matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5)
+    m_rows, m_cols = size(M_original)
+    M_data = _pad_copy_matrix_float32(M_original)
+    M = CuModMatrix(M_data, p; new_size = (m_rows, m_cols))
+    mod_elements!(M)
+
+    start_vector_data = _pad_copy_vector_float32(start_vector_cpu)
+    start_vector_gpu = CuModMatrix(start_vector_data, p; new_size = (nMonomials, 1))
+    mod_elements!(start_vector_gpu)
+
+    padded_out_rows = m_rows + GPUFiniteFieldMatrices.TILE_WIDTH
+    padded_out_cols = 1 + GPUFiniteFieldMatrices.TILE_WIDTH
+    KTY_gpu = CuModMatrix(CUDA.zeros(Float32, padded_out_rows, padded_out_cols), p; new_size = (m_rows, 1))
+    KTY_gpu_next = CuModMatrix(CUDA.zeros(Float32, padded_out_rows, padded_out_cols), p; new_size = (m_rows, 1))
+
+    M_gpu_cpu = Array(@view M.data[1:m_rows, 1:m_cols])
+    if M_cpu != M_gpu_cpu
+        mismatch_idx = findfirst(i -> M_cpu[i] != M_gpu_cpu[i], 1:length(M_cpu))
+        cpu_val = M_cpu[mismatch_idx]
+        gpu_val = M_gpu_cpu[mismatch_idx]
+        error("GPU/CPU mismatch at M index=$mismatch_idx cpu=$cpu_val gpu=$gpu_val")
+    end
+
+    start_vec_gpu_cpu = vec(Array(@view start_vector_gpu.data[1:nMonomials, 1]))
+    if start_vector_cpu != start_vec_gpu_cpu
+        mismatch_idx = findfirst(i -> start_vector_cpu[i] != start_vec_gpu_cpu[i], 1:length(start_vector_cpu))
+        cpu_val = start_vector_cpu[mismatch_idx]
+        gpu_val = start_vec_gpu_cpu[mismatch_idx]
+        error("GPU/CPU mismatch at start_vector index=$mismatch_idx cpu=$cpu_val gpu=$gpu_val")
+    end
+
+    GPUFiniteFieldMatrices.stripe_mul!(KTY_gpu, M, start_vector_gpu)
+
+    KTY_gpu_cpu = vec(Array(@view KTY_gpu.data[1:m_rows, 1]))
+    if KTY_cpu != KTY_gpu_cpu
+        mismatch_idx = findfirst(i -> KTY_cpu[i] != KTY_gpu_cpu[i], 1:length(KTY_cpu))
+        cpu_val = KTY_cpu[mismatch_idx]
+        gpu_val = KTY_gpu_cpu[mismatch_idx]
+        println("KTY_cpu: ", Int.(KTY_cpu))
+        println("KTY_gpu_cpu: ", KTY_gpu_cpu)
+        error("GPU/CPU mismatch at n=1 index=$mismatch_idx cpu=$cpu_val gpu=$gpu_val")
+    end
+
+    n = 2
+    while n ≤ cutoff
+
+        KTY_gpu_cpu = vec(Array(@view KTY_gpu.data[1:m_rows, 1]))
+        if KTY_cpu != KTY_gpu_cpu
+            mismatch_idx = findfirst(i -> KTY_cpu[i] != KTY_gpu_cpu[i], 1:length(KTY_cpu))
+            cpu_val = KTY_cpu[mismatch_idx]
+            gpu_val = KTY_gpu_cpu[mismatch_idx]
+            println("KTY_cpu: ", Int.(KTY_cpu))
+            println("KTY_gpu_cpu: ", KTY_gpu_cpu)
+            error("GPU/CPU mismatch at n=$n index=$mismatch_idx cpu=$cpu_val gpu=$gpu_val")
+            
+        end
+
+        KTY_cpu == zzs && return cutoff + 2
+
+        if KTY_cpu[critical_ind] != 0
+            return n
+        end
+
+        n = n + 1
+        
+        KTY_cpu = (M_cpu * KTY_cpu) .% p
+        GPUFiniteFieldMatrices.stripe_mul!(KTY_gpu_next, M, KTY_gpu)
+        KTY_gpu, KTY_gpu_next = KTY_gpu_next, KTY_gpu
+    end
+    return cutoff + 1
+end
+
+function quasiFSplitHeight_CY_lift_wics_cpu(p,poly,cutoff,pregen)
     N = length(gens(parent(poly)))
   
     !isHomog(poly,ofdegree=N) && return -1
@@ -150,7 +314,7 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
       KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
     end
     return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
-end#function
+end
 
 # """
 # Uses the gpu to calculate Δ_1 and then 

@@ -26,7 +26,7 @@ include("FrobSplittingInfra.jl")
 include("MatricesOfSplittings.jl")
 include("FPureThresholds.jl")
 
-# using GPUFiniteFieldMatrices
+using GPUFiniteFieldMatrices
 
 include("QFSCalabiYau.jl")
 include("QFSGeneralCase.jl")
