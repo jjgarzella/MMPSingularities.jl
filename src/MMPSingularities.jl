@@ -43,4 +43,39 @@ include("naivepointcounts/CountPoints.jl")
 
 # exports here
 
+global fpminus1_time = []
+global delta1_time = []
+global move_matrix_time = []
+global move_vector_time = []
+global stripe_mul_time = []
+global if_time = []
+
+function reset_times()
+    global fpminus1_time = []
+    global delta1_time = []
+    global move_matrix_time = []
+    global move_vector_time = []
+    global stripe_mul_time = []
+    global if_time = []
+end
+
+function display_times()
+  println("fpminus1 avg time: $(sum(fpminus1_time) / length(fpminus1_time))")
+  println("delta1 avg time: $(sum(delta1_time) / length(delta1_time))")
+  println("move_matrix avg time: $(sum(move_matrix_time) / length(move_matrix_time))")
+  println("move_vector avg time: $(sum(move_vector_time) / length(move_vector_time))")
+  println("stripe_mul avg time: $(sum(stripe_mul_time) / length(stripe_mul_time))")
+  println("if avg time: $(sum(if_time) / length(if_time))")
+  println("total time: $(sum(fpminus1_time) + sum(delta1_time) + sum(move_matrix_time) + sum(move_vector_time) + sum(stripe_mul_time) + sum(if_time))")
+  println("total itrs: $(length(fpminus1_time) + length(delta1_time) + length(move_matrix_time) + length(move_vector_time) + length(stripe_mul_time) + length(if_time))")
+  println("avg time: $((sum(fpminus1_time) + sum(delta1_time) + sum(move_matrix_time) + sum(move_vector_time) + sum(stripe_mul_time) + sum(if_time)) / (length(fpminus1_time) + length(delta1_time) + length(move_matrix_time) + length(move_vector_time) + length(stripe_mul_time) + length(if_time)))")
+
+  println("fpminus times: $(fpminus1_time)")
+  println("delta1 times: $(delta1_time)")
+  println("move_matrix times: $(move_matrix_time)")
+  println("move_vector times: $(move_vector_time)")
+  println("stripe_mul times: $(stripe_mul_time)")
+  println("if times: $(if_time)")
+end
+
 end
