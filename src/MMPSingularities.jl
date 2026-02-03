@@ -43,23 +43,27 @@ include("naivepointcounts/CountPoints.jl")
 
 # exports here
 
-global fpminus1_time = []
-global delta1_time = []
-global move_matrix_time = []
-global move_vector_time = []
-global stripe_mul_time = []
-global if_time = []
+global fpminus1_time = Float64[]
+global delta1_time = Float64[]
+global move_matrix_time = Float64[]
+global move_vector_time = Float64[]
+global stripe_mul_time = Float64[]
+global if_time = Float64[]
 
 function reset_times()
-    global fpminus1_time = []
-    global delta1_time = []
-    global move_matrix_time = []
-    global move_vector_time = []
-    global stripe_mul_time = []
-    global if_time = []
+    global fpminus1_time = Float64[]
+    global delta1_time = Float64[]
+    global move_matrix_time = Float64[]
+    global move_vector_time = Float64[]
+    global stripe_mul_time = Float64[]
+    global if_time = Float64[]
 end
 
 function display_times()
+  if isempty(fpminus1_time)
+    println("No timing data collected.")
+    return
+  end
   println("fpminus1 avg time: $(sum(fpminus1_time) / length(fpminus1_time))")
   println("delta1 avg time: $(sum(delta1_time) / length(delta1_time))")
   println("move_matrix avg time: $(sum(move_matrix_time) / length(move_matrix_time))")

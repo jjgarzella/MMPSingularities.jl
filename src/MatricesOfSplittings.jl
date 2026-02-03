@@ -253,8 +253,10 @@ function matrix_of_multiply_then_split(poly::fpMPolyRingElem, d = nothing; plan 
         return matrix_of_multiply_then_split_wics(p, coeffs, degs, d, n, poly.bits; out_deg = Int(out_deg), use_sparse = use_sparse)
     elseif alg == 5
         return matrix_of_multiply_then_split_wics_gpu(p, CuArray(coeffs), CuArray(degs), d, n, poly.bits, plan)
+    elseif alg == 6
+        return matrix_of_multiply_then_split_wics_gpu_padded(p, CuArray(coeffs), CuArray(degs), d, n, poly.bits, plan)
     else
-        throw(ArgumentError("alg must be in [0, ..., 5]"))
+        throw(ArgumentError("alg must be in [0, ..., 6]"))
     end
 end
 
@@ -287,8 +289,10 @@ function matrix_of_multiply_then_split(poly::CufpMPolyRingElem{T}, d = nothing; 
         return matrix_of_multiply_then_split_wics(p, Array(coeffs), Array(degs), d, n, poly.bits; out_deg = out_deg)
     elseif alg == 5
         return matrix_of_multiply_then_split_wics_gpu(p, coeffs, degs, d, n, poly.bits, plan)
+    elseif alg == 6
+        return matrix_of_multiply_then_split_wics_gpu_padded(p, coeffs, degs, d, n, poly.bits, plan)
     else
-        throw(ArgumentError("alg must be in [0, ..., 5]"))
+        throw(ArgumentError("alg must be in [0, ..., 6]"))
     end
 end
 
@@ -569,6 +573,25 @@ end
 
 function matrix_of_multiply_then_split_wics_gpu(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)
     result = CUDA.zeros(eltype(coeffs), pregen.nMons, pregen.nMons)
+
+    kron(vec) = base2kron(vec, bits)
+    div_kron(n, m) = base2divkron(n, m, numVars, bits)
+    mod_kron(n, m) = base2modkron(n, m, numVars, bits)
+
+    relevant = kron(fill(p - 1, numVars))
+
+    kernel = @cuda launch = false wics_gpu_kernel(p, coeffs, encodedDegs, numVars, pregen.weakintegercompositions, pregen.lengths, pregen.startindices, pregen.reverseMons, bits, d, div_kron, relevant, result)
+    config = launch_configuration(kernel.fun)
+    threads = min(length(encodedDegs), config.threads)
+    blocks = cld(length(encodedDegs), threads)
+
+    kernel(p, coeffs, encodedDegs, numVars, pregen.weakintegercompositions, pregen.lengths, pregen.startindices, pregen.reverseMons, bits, d, div_kron, relevant, result; threads = threads, blocks = blocks)
+
+    return result
+end
+
+function matrix_of_multiply_then_split_wics_gpu_padded(p::UInt, coeffs::CuVector{<:Unsigned}, encodedDegs::CuVector{<:Unsigned}, d::Int, numVars::Int, bits::Int, pregen::MOMTSPregen)
+    result = CUDA.zeros(Float32, pregen.nMons + 32, pregen.nMons + 32)
 
     kron(vec) = base2kron(vec, bits)
     div_kron(n, m) = base2divkron(n, m, numVars, bits)

@@ -150,9 +150,10 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
     start_vector = lift_to_Int64(vector(fpminus1,m))
   
     push!(move_matrix_time, (@timed begin
-    M_original = matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5)
-    m_rows, m_cols = size(M_original)
-    M_data = _pad_copy_matrix_float32(M_original)
+    M_data = matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 6)
+    m_rows, m_cols = size(M_data)
+    m_rows -= 32
+    m_cols -= 32
     M = CuModMatrix(M_data, p; new_size=(m_rows, m_cols))
     end).time)
 

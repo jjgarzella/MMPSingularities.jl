@@ -6,13 +6,13 @@
 #using Oscar
 
 function height_run_tests()
-    height_test_K3_3()
-    height_test_K3_5()
-    height_test_K3_7()
+    # height_test_K3_3()
+    # height_test_K3_5()
+    # height_test_K3_7()
+    # height_test_K3_11()
     height_test_K3_11()
-    height_test_K3_13()
     MMPSingularities.reset_times()
-    height_test_K3_13()
+    height_test_K3_11()
     MMPSingularities.display_times()
     # test_matrix()
 end
