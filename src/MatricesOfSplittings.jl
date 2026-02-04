@@ -221,7 +221,7 @@ Params:
     - `2: TRIV GPU`
     - `3: MERGE`
     - `4: WICS`
-    - `5: GPU`
+    - `5: WICS GPU`
 - `use_sparse`: Whether to use the sparse version of WICS algorithm
 """
 function matrix_of_multiply_then_split(poly::fpMPolyRingElem, d = nothing; plan = nothing, alg = 4, use_sparse = false)
@@ -501,8 +501,8 @@ function matrix_of_multiply_then_split_wics(p::UInt, coeffs::Vector{<:Unsigned},
     nMons = size(mons,2)
     nOutMons = size(out_mons,2)
 
-    println(nMons,",",nOutMons)
-    println(length(coeffs))
+    # println(nMons,",",nOutMons)
+    # println(length(coeffs))
     if !use_sparse
         result = zeros(eltype(coeffs), nOutMons, nMons)
     else

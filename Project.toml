@@ -23,6 +23,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [sources]
 GPUPolynomials = {url = "https://github.com/alexp616/GPUPolynomials.jl"}
 GradedRingUtilities = {url = "https://github.com/UCSD-computational-number-theory/GradedRingUtilities.jl"}
+GPUFiniteFieldMatrices = {url = "https://github.com/UCSD-computational-number-theory/GPUFiniteFieldMatrices.jl"}
 
 [compat]
 CudaNTTs = "1.2.0"

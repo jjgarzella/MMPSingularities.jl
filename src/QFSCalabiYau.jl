@@ -39,12 +39,15 @@ function quasiFSplitHeight_CY_lift(p,poly,cutoff)
 
   !isHomog(poly,ofdegree=N) && return -1 # type instability problem??
 
-  isFSplit(p,poly) && return 1
-
-  f = poly
-
-  println("calculating Δ₁...")
-  @time Δ₁fpminus1 = Δ₁l(p,f^(p-1))
+  push!(fpminus1_time, (@timed begin 
+  isfsplit, fpminus1 = isFSplit2(p, poly)
+  isfsplit && return 1
+  end).time)
+  
+  push!(delta1_time, (@timed begin
+  Δ₁fpminus1 = Δ₁lp²(fpminus1)
+  end).time)
+  
   θFstar(a) = polynomial_frobenius_generator(p,Δ₁fpminus1*a)
 
   # KTY is for Kawakami, Takamatsu, and Yoshikawa, the authors of 2204.10076
@@ -55,22 +58,31 @@ function quasiFSplitHeight_CY_lift(p,poly,cutoff)
   # For Calabi-Yau varieties, one has that the sequence I_n can be seen to
   # be concatenating on new generator at each step until the chain terminates.
   # See Theorem 5.8 in 2204.10076
-  println("trying height 2...")
-  @time KTYideal_n_new_gen = θFstar(f^(p-1))
+  # println("trying height 2...")
 
+  push!(stripe_mul_time, (@timed begin
+    KTYideal_n_new_gen = θFstar(fpminus1)
+  end).time)
+  
   while n ≤ cutoff
-    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    push!(if_time, (@timed begin
     KTYideal_n_new_gen == zero(poly) && return cutoff + 2 # the chain terminated early, provable infinity
 
     if !inPowerOfVariableIdeal(p,p,KTYideal_n_new_gen)
       # We are quasi-F split of height n! Yay!!
       return n
     end
-
+    end).time)
+    #println("New Generator of KTY ideal I_n: ", KTYideal_n_new_gen)
+    
     n = n + 1
-    println("trying height $n...")
+
+    push!(stripe_mul_time, (@timed begin
+      KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+    end).time)
+    # println("trying height $n...")
     #println("next one should be: ", θFstar(KTYideal_n_new_gen))
-    @time KTYideal_n_new_gen = θFstar(KTYideal_n_new_gen)
+    
   end
 
   return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
@@ -291,6 +303,54 @@ function quasiFSplitHeight_CY_lift_wics_gpu_cpu_check(p, poly, cutoff, pregen)
 end
 
 function quasiFSplitHeight_CY_lift_wics_cpu(p,poly,cutoff,pregen)
+    N = length(gens(parent(poly)))
+  
+    !isHomog(poly,ofdegree=N) && return -1
+  
+    push!(fpminus1_time, (@timed begin 
+    isfsplit, fpminus1 = isFSplit2(p, poly)
+    isfsplit && return 1
+    end).time)
+  
+    push!(delta1_time, (@timed begin
+    Δ₁fpminus1 = Δ₁lp²(fpminus1)
+    end).time)
+  
+    m = N*(p-1)
+    critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
+    start_vector = lift_to_Int64(vector(fpminus1,m))
+  
+    push!(move_matrix_time, (@timed begin
+    M = matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 4)
+    end).time)
+    nMonomials = length(start_vector)
+    zzs = zeros(parent(start_vector[1]),nMonomials)
+  
+    n = 2
+    
+    push!(stripe_mul_time, (@timed begin
+    KTYideal_n_new_gen = (M * start_vector) .% p
+    end).time)
+  
+    while n ≤ cutoff
+      push!(if_time, (@timed begin
+      KTYideal_n_new_gen == zzs && return cutoff + 2
+  
+      if KTYideal_n_new_gen[critical_ind] != 0
+        return n
+      end
+      end).time)
+  
+      n = n + 1
+      
+      push!(stripe_mul_time, (@timed begin
+      KTYideal_n_new_gen = (M * KTYideal_n_new_gen) .% p
+      end).time)
+    end
+    return cutoff + 1 # we didn't see the chain terminate, conclusion is unclear
+end
+
+function quasiFSplitHeight_CY_lift_wics_cpu_momts(p,poly,cutoff,pregen)
     N = length(gens(parent(poly)))
   
     !isHomog(poly,ofdegree=N) && return -1
