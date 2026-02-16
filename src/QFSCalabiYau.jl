@@ -129,15 +129,15 @@ function quasiFSplitHeight_CY_lift_wics_gpu(p,poly,cutoff,pregen)
     critical_ind = index_of_term_not_in_frobenius_power_CY(p,N) # lex order (i.e. the default)
     start_vector = lift_to_Int64(vector(fpminus1,m))
   
-  
-    M = Array(matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5))
+    d_M = matrix_of_multiply_then_split(Δ₁fpminus1; plan = pregen.momtspregen, alg = 5)
+    M = Array(d_M)
+    CUDA.unsafe_free!(d_M) 
     nMonomials = length(start_vector)
     zzs = zeros(parent(start_vector[1]),nMonomials)
   
     n = 2
   
     KTYideal_n_new_gen = (M * start_vector) .% p
-  
     while n ≤ cutoff
       KTYideal_n_new_gen == zzs && return cutoff + 2
   

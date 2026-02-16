@@ -9,6 +9,15 @@ include("supabase.jl")
 
 client = include("key.jl")
 
+function check_smoothness(f)
+    p = characteristic(parent(f))
+    nVars = length(gens(parent(f)))
+    graded, _ = grade(parent(f))
+    R, _ = quo(graded, ideal(graded, [graded(f)]))
+    V = proj(R)
+    is_smooth(V)
+end
+
 function save_to_database(client, heights, heightstablename, all_dicts, polystablename)
     # println("Saving to database...")
     update_heights(client, heights, heightstablename)
@@ -25,6 +34,18 @@ function write_to_runlog(string)
 end
 
 function run_experiment(heights, thread_dicts, experimentThreads, n, p)
+    cutoff = 0 # cutoff required to write to database
+    if p == 3
+	cutoff = 9
+    elseif p == 5
+	cutoff = 8
+    elseif p == 7
+	cutoff = 8
+    elseif p == 11
+	cutoff = 4
+    elseif p == 13
+	cutoff = 3
+    end
     R, vars = polynomial_ring(GF(p), n)
     
     (x1, x2, x3, x4) = vars
@@ -45,8 +66,10 @@ function run_experiment(heights, thread_dicts, experimentThreads, n, p)
             else
                 heights[height] += 1
             end
-            if height >= 3
-                push!(thread_dicts, Dict("height" => height, "polynomial" => string(f)))
+            if height >= cutoff
+		if (check_smoothness(f))
+		    push!(thread_dicts, Dict("height" => height, "polynomial" => string(f)))
+		end
             end
         end
     end
@@ -57,13 +80,13 @@ function periodic_writer(heights, thread_dicts, p)
     x = 150
     while true
         sleep(x)
-        heightstablename = "K3C$(p)Heights"
-        polystablename = "K3C$(p)Polys"
+        heightstablename = "smooth_K3C$(p)Heights"
+        polystablename = "smooth_K3C$(p)Polys"
         
         save_to_database(client, heights, heightstablename, thread_dicts, polystablename)
         totalSamples = sum(heights)
         SPS = totalSamples / x
-        write_to_runlog("Processed $SPS samples per second in past $x seconds, threads: $(Threads.nthreads()) \n")
+        write_to_runlog("p: $(p). Processed $SPS samples per second in past $x seconds, threads: $(Threads.nthreads()) \n")
         fill!(heights, 0)
         empty!(thread_dicts)
     end
@@ -79,6 +102,7 @@ function run(n, p)
     @spawn periodic_writer(heights, thread_dicts, p)
     
     run_experiment(heights, thread_dicts, experimentThreads, n, p)
+    wait(Condition())
 end
 
-run(4, 5)
+println("hello")
