@@ -1,5 +1,6 @@
 name = "MMPSingularities"
 uuid = "bdc0cb22-a987-4314-9a0f-3fd22c4d92b7"
+version = "0.2.0"
 
 [deps]
 AcceleratedKernels = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
